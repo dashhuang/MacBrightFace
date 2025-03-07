@@ -1,5 +1,17 @@
 # MacBrightFace
 
+## Download | 下载
+A pre-compiled version of MacBrightFace is available for direct download:
+
+预编译版本可直接下载使用：
+
+- **Compiled App**: Download [MacBrightFace.zip](https://github.com/dashhuang/MacBrightFace/raw/main/Release/MacBrightFace.zip) from the repository's Release folder  
+  **编译好的应用**：从仓库的Release文件夹下载 [MacBrightFace.zip](https://github.com/dashhuang/MacBrightFace/raw/main/Release/MacBrightFace.zip)
+
+After downloading, simply extract the zip file and move MacBrightFace.app to your Applications folder.
+
+下载后，只需解压缩文件并将MacBrightFace.app移动到"应用程序"文件夹即可。
+
 ## Project Overview | 项目概述
 MacBrightFace is a macOS tool that provides adjustable brightness around the screen, making it especially suitable for video conferences and live streaming. This tool has been optimized for various types of displays, ensuring excellent brightness experience across different monitors, particularly delivering outstanding results on high-brightness displays supporting HDR and XDR technologies.
 
@@ -111,14 +123,7 @@ The application employs an optimized brightness calculation algorithm:
 - **NotificationCenter**: For component communication.  
   **NotificationCenter**：组件间通信
 
-## Download | 下载
-A pre-compiled version of MacBrightFace is available for direct download:
+## Development Tools | 开发工具
+This project was developed with assistance from **Cursor AI**, an AI-powered code editor that enhances programming productivity through intelligent code completion and generation. Cursor AI played a crucial role in optimizing the brightness algorithms and implementing the smooth UI interactions.
 
-预编译版本可直接下载使用：
-
-- **Compiled App**: Download [MacBrightFace.zip](https://github.com/dashhuang/MacBrightFace/raw/main/Release/MacBrightFace.zip) from the repository's Release folder  
-  **编译好的应用**：从仓库的Release文件夹下载 [MacBrightFace.zip](https://github.com/dashhuang/MacBrightFace/raw/main/Release/MacBrightFace.zip)
-
-After downloading, simply extract the zip file and move MacBrightFace.app to your Applications folder.
-
-下载后，只需解压缩文件并将MacBrightFace.app移动到"应用程序"文件夹即可。
+本项目在开发过程中使用了 **Cursor AI** 辅助生成代码。Cursor AI 是一款基于人工智能的代码编辑器，通过智能代码补全和生成功能提高编程效率。在亮度算法优化和流畅界面交互实现过程中，Cursor AI 发挥了重要作用。
