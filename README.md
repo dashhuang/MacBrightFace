@@ -110,3 +110,15 @@ The application employs an optimized brightness calculation algorithm:
 
 - **NotificationCenter**: For component communication.  
   **NotificationCenter**：组件间通信
+
+## Download | 下载
+A pre-compiled version of MacBrightFace is available for direct download:
+
+预编译版本可直接下载使用：
+
+- **Compiled App**: Download [MacBrightFace.zip](https://github.com/dashhuang/MacBrightFace/raw/main/Release/MacBrightFace.zip) from the repository's Release folder  
+  **编译好的应用**：从仓库的Release文件夹下载 [MacBrightFace.zip](https://github.com/dashhuang/MacBrightFace/raw/main/Release/MacBrightFace.zip)
+
+After downloading, simply extract the zip file and move MacBrightFace.app to your Applications folder.
+
+下载后，只需解压缩文件并将MacBrightFace.app移动到"应用程序"文件夹即可。
