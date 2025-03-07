@@ -1,0 +1,21 @@
+/* 
+  Localizable.strings
+  MacBrightFace
+  
+  Simplified Chinese localization
+*/
+
+// App menu items
+"TOGGLE_LIGHT_ON" = "打开补光灯";
+"TOGGLE_LIGHT_OFF" = "关闭补光灯";
+"BRIGHTNESS_SLIDER" = "滑动调节亮度";
+"BORDER_WIDTH_MENU" = "补光灯尺寸";
+"BORDER_WIDTH_SMALL" = "小";
+"BORDER_WIDTH_LARGE" = "大";
+"HDR_MODE_ON" = "HDR模式: 开启";
+"HDR_MODE_OFF" = "HDR模式: 关闭";
+"ABOUT_LIGHT" = "关于 MacBrightFace";
+"QUIT" = "退出";
+
+// UI labels
+"BRIGHTNESS_LABEL" = "亮度: %@%%"; 

@@ -24,25 +24,15 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		C801CA212D7581D000403DBD /* LIght.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LIght.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		C801CA322D7581D100403DBD /* LIghtTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LIghtTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		C801CA3C2D7581D100403DBD /* LIghtUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LIghtUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		C801CA212D7581D000403DBD /* MacBrightFace.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MacBrightFace.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C801CA322D7581D100403DBD /* MacBrightFaceTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MacBrightFaceTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		C801CA3C2D7581D100403DBD /* MacBrightFaceUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MacBrightFaceUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		C801CA232D7581D000403DBD /* LIght */ = {
+		C801CA232D7581D000403DBD /* MacBrightFace */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = LIght;
-			sourceTree = "<group>";
-		};
-		C801CA352D7581D100403DBD /* LIghtTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = LIghtTests;
-			sourceTree = "<group>";
-		};
-		C801CA3F2D7581D100403DBD /* LIghtUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = LIghtUITests;
+			path = MacBrightFace;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -75,9 +65,7 @@
 		C801CA182D7581D000403DBD = {
 			isa = PBXGroup;
 			children = (
-				C801CA232D7581D000403DBD /* LIght */,
-				C801CA352D7581D100403DBD /* LIghtTests */,
-				C801CA3F2D7581D100403DBD /* LIghtUITests */,
+				C801CA232D7581D000403DBD /* MacBrightFace */,
 				C801CA222D7581D000403DBD /* Products */,
 			);
 			sourceTree = "<group>";
@@ -85,9 +73,9 @@
 		C801CA222D7581D000403DBD /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				C801CA212D7581D000403DBD /* LIght.app */,
-				C801CA322D7581D100403DBD /* LIghtTests.xctest */,
-				C801CA3C2D7581D100403DBD /* LIghtUITests.xctest */,
+				C801CA212D7581D000403DBD /* MacBrightFace.app */,
+				C801CA322D7581D100403DBD /* MacBrightFaceTests.xctest */,
+				C801CA3C2D7581D100403DBD /* MacBrightFaceUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -95,9 +83,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		C801CA202D7581D000403DBD /* LIght */ = {
+		C801CA202D7581D000403DBD /* MacBrightFace */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = C801CA462D7581D100403DBD /* Build configuration list for PBXNativeTarget "LIght" */;
+			buildConfigurationList = C801CA462D7581D100403DBD /* Build configuration list for PBXNativeTarget "MacBrightFace" */;
 			buildPhases = (
 				C801CA1D2D7581D000403DBD /* Sources */,
 				C801CA1E2D7581D000403DBD /* Frameworks */,
@@ -108,18 +96,18 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				C801CA232D7581D000403DBD /* LIght */,
+				C801CA232D7581D000403DBD /* MacBrightFace */,
 			);
-			name = LIght;
+			name = MacBrightFace;
 			packageProductDependencies = (
 			);
 			productName = LIght;
-			productReference = C801CA212D7581D000403DBD /* LIght.app */;
+			productReference = C801CA212D7581D000403DBD /* MacBrightFace.app */;
 			productType = "com.apple.product-type.application";
 		};
-		C801CA312D7581D100403DBD /* LIghtTests */ = {
+		C801CA312D7581D100403DBD /* MacBrightFaceTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = C801CA492D7581D100403DBD /* Build configuration list for PBXNativeTarget "LIghtTests" */;
+			buildConfigurationList = C801CA492D7581D100403DBD /* Build configuration list for PBXNativeTarget "MacBrightFaceTests" */;
 			buildPhases = (
 				C801CA2E2D7581D100403DBD /* Sources */,
 				C801CA2F2D7581D100403DBD /* Frameworks */,
@@ -130,19 +118,16 @@
 			dependencies = (
 				C801CA342D7581D100403DBD /* PBXTargetDependency */,
 			);
-			fileSystemSynchronizedGroups = (
-				C801CA352D7581D100403DBD /* LIghtTests */,
-			);
-			name = LIghtTests;
+			name = MacBrightFaceTests;
 			packageProductDependencies = (
 			);
 			productName = LIghtTests;
-			productReference = C801CA322D7581D100403DBD /* LIghtTests.xctest */;
+			productReference = C801CA322D7581D100403DBD /* MacBrightFaceTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		C801CA3B2D7581D100403DBD /* LIghtUITests */ = {
+		C801CA3B2D7581D100403DBD /* MacBrightFaceUITests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = C801CA4C2D7581D100403DBD /* Build configuration list for PBXNativeTarget "LIghtUITests" */;
+			buildConfigurationList = C801CA4C2D7581D100403DBD /* Build configuration list for PBXNativeTarget "MacBrightFaceUITests" */;
 			buildPhases = (
 				C801CA382D7581D100403DBD /* Sources */,
 				C801CA392D7581D100403DBD /* Frameworks */,
@@ -153,14 +138,11 @@
 			dependencies = (
 				C801CA3E2D7581D100403DBD /* PBXTargetDependency */,
 			);
-			fileSystemSynchronizedGroups = (
-				C801CA3F2D7581D100403DBD /* LIghtUITests */,
-			);
-			name = LIghtUITests;
+			name = MacBrightFaceUITests;
 			packageProductDependencies = (
 			);
 			productName = LIghtUITests;
-			productReference = C801CA3C2D7581D100403DBD /* LIghtUITests.xctest */;
+			productReference = C801CA3C2D7581D100403DBD /* MacBrightFaceUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
@@ -186,12 +168,14 @@
 					};
 				};
 			};
-			buildConfigurationList = C801CA1C2D7581D000403DBD /* Build configuration list for PBXProject "LIght" */;
+			buildConfigurationList = C801CA1C2D7581D000403DBD /* Build configuration list for PBXProject "MacBrightFace" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
 				Base,
+				"zh-Hans",
+				"zh-Hant",
 			);
 			mainGroup = C801CA182D7581D000403DBD;
 			minimizedProjectReferenceProxies = 1;
@@ -200,9 +184,9 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				C801CA202D7581D000403DBD /* LIght */,
-				C801CA312D7581D100403DBD /* LIghtTests */,
-				C801CA3B2D7581D100403DBD /* LIghtUITests */,
+				C801CA202D7581D000403DBD /* MacBrightFace */,
+				C801CA312D7581D100403DBD /* MacBrightFaceTests */,
+				C801CA3B2D7581D100403DBD /* MacBrightFaceUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -258,12 +242,12 @@
 /* Begin PBXTargetDependency section */
 		C801CA342D7581D100403DBD /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = C801CA202D7581D000403DBD /* LIght */;
+			target = C801CA202D7581D000403DBD /* MacBrightFace */;
 			targetProxy = C801CA332D7581D100403DBD /* PBXContainerItemProxy */;
 		};
 		C801CA3E2D7581D100403DBD /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = C801CA202D7581D000403DBD /* LIght */;
+			target = C801CA202D7581D000403DBD /* MacBrightFace */;
 			targetProxy = C801CA3D2D7581D100403DBD /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -326,6 +310,7 @@
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "补光灯";
 				SDKROOT = macosx;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -382,6 +367,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 15.2;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "补光灯";
 				SDKROOT = macosx;
 				SWIFT_COMPILATION_MODE = wholemodule;
 			};
@@ -392,20 +378,22 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = LIght/LIght.entitlements;
+				CODE_SIGN_ENTITLEMENTS = MacBrightFace/Light.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_ASSET_PATHS = "\"LIght/Preview Content\"";
+				DEVELOPMENT_ASSET_PATHS = "\"MacBrightFace/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "补光灯";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = Dash.LIght;
+				PRODUCT_BUNDLE_IDENTIFIER = cn.huang.dash.MacBrightFace;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -417,20 +405,22 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = LIght/LIght.entitlements;
+				CODE_SIGN_ENTITLEMENTS = MacBrightFace/Light.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_ASSET_PATHS = "\"LIght/Preview Content\"";
+				DEVELOPMENT_ASSET_PATHS = "\"MacBrightFace/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "补光灯";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = Dash.LIght;
+				PRODUCT_BUNDLE_IDENTIFIER = cn.huang.dash.MacBrightFace;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -450,7 +440,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/LIght.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/LIght";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MacBrightFace.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MacBrightFace";
 			};
 			name = Debug;
 		};
@@ -467,7 +457,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/LIght.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/LIght";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MacBrightFace.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MacBrightFace";
 			};
 			name = Release;
 		};
@@ -504,7 +494,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		C801CA1C2D7581D000403DBD /* Build configuration list for PBXProject "LIght" */ = {
+		C801CA1C2D7581D000403DBD /* Build configuration list for PBXProject "MacBrightFace" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				C801CA442D7581D100403DBD /* Debug */,
@@ -513,7 +503,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		C801CA462D7581D100403DBD /* Build configuration list for PBXNativeTarget "LIght" */ = {
+		C801CA462D7581D100403DBD /* Build configuration list for PBXNativeTarget "MacBrightFace" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				C801CA472D7581D100403DBD /* Debug */,
@@ -522,7 +512,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		C801CA492D7581D100403DBD /* Build configuration list for PBXNativeTarget "LIghtTests" */ = {
+		C801CA492D7581D100403DBD /* Build configuration list for PBXNativeTarget "MacBrightFaceTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				C801CA4A2D7581D100403DBD /* Debug */,
@@ -531,7 +521,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		C801CA4C2D7581D100403DBD /* Build configuration list for PBXNativeTarget "LIghtUITests" */ = {
+		C801CA4C2D7581D100403DBD /* Build configuration list for PBXNativeTarget "MacBrightFaceUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				C801CA4D2D7581D100403DBD /* Debug */,

@@ -1,0 +1,7 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+每次修改前都先阅读 [README.md](mdc:README.md)
+修改完后把改动总结提炼到 [README.md](mdc:README.md)，以便未来能理解项目。

@@ -1,0 +1,21 @@
+/* 
+  Localizable.strings
+  MacBrightFace
+  
+  English localization
+*/
+
+// App menu items
+"TOGGLE_LIGHT_ON" = "Turn On MacBrightFace";
+"TOGGLE_LIGHT_OFF" = "Turn Off MacBrightFace";
+"BRIGHTNESS_SLIDER" = "Adjust Brightness";
+"BORDER_WIDTH_MENU" = "Light Size";
+"BORDER_WIDTH_SMALL" = "Small";
+"BORDER_WIDTH_LARGE" = "Large";
+"HDR_MODE_ON" = "HDR Mode: On";
+"HDR_MODE_OFF" = "HDR Mode: Off";
+"ABOUT_LIGHT" = "About MacBrightFace";
+"QUIT" = "Quit";
+
+// UI labels
+"BRIGHTNESS_LABEL" = "Brightness: %@%%"; 
