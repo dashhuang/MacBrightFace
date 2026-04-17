@@ -3,5 +3,7 @@ xcuserdata/
 build/
 DerivedData/
 dist/
+Release/
+logs/
 *.xcarchive
 *.xcresult
