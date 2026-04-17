@@ -10,12 +10,12 @@
 "TOGGLE_LIGHT_OFF" = "關閉補光燈";
 "BRIGHTNESS_SLIDER" = "滑動調節亮度";
 "BORDER_WIDTH_MENU" = "補光燈尺寸";
-"BORDER_WIDTH_SMALL" = "小";
-"BORDER_WIDTH_LARGE" = "大";
 "HDR_MODE_ON" = "HDR模式: 開啟";
 "HDR_MODE_OFF" = "HDR模式: 關閉";
+"HDR_MODE_UNAVAILABLE" = "HDR模式: 無法使用";
 "ABOUT_LIGHT" = "關於 MacBrightFace";
 "QUIT" = "退出";
 
 // UI labels
-"BRIGHTNESS_LABEL" = "亮度: %@%%"; 
+"BRIGHTNESS_LABEL" = "亮度: %@%%";
+"BORDER_WIDTH_LABEL" = "補光燈尺寸: %@ 像素";

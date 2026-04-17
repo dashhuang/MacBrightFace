@@ -2,3 +2,6 @@
 xcuserdata/
 build/
 DerivedData/
+dist/
+*.xcarchive
+*.xcresult
