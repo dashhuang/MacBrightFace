@@ -12,7 +12,8 @@
 "BORDER_WIDTH_MENU" = "Light Size";
 "HDR_MODE_ON" = "HDR Mode: On";
 "HDR_MODE_OFF" = "HDR Mode: Off";
-"HDR_MODE_UNAVAILABLE" = "HDR Mode: Unavailable";
+"HDR_MODE_UNAVAILABLE" = "This display doesn't support HDR";
+"HDR_BUTTON_UNAVAILABLE" = "Unsupported";
 "ABOUT_LIGHT" = "About MacBrightFace";
 "QUIT" = "Quit";
 

@@ -15,47 +15,55 @@ final class LightController: ObservableObject {
     @Published private(set) var hasHDRDisplay = false
     @Published private(set) var borderWidth = LightConfiguration.defaultBorderWidth
 
-    private struct EdgeWindow {
+    private struct DisplayWindow {
         let displayID: CGDirectDisplayID
-        let edge: ScreenEdge
         let window: NSWindow
         let hostingView: NSHostingView<LightView>
     }
 
-    private enum ScreenEdge: CaseIterable {
-        case top
-        case bottom
-        case left
-        case right
-    }
-
-    private var edgeWindows: [EdgeWindow] = []
+    private var displayWindows: [DisplayWindow] = []
     private var maxHDRBrightness = 1.0
     private var lastScreenLayout: [ScreenLayoutSignature] = []
+    private var globalMouseMonitor: Any?
+    private var localMouseMonitor: Any?
     private let lightViewModel = LightViewModel(
         brightness: LightConfiguration.defaultBrightness,
         isHDREnabled: false,
-        maxHDRFactor: 1.0
+        maxHDRFactor: 1.0,
+        borderWidth: LightConfiguration.defaultBorderWidth,
+        mouseLocation: NSEvent.mouseLocation
     )
 
     init() {
         refreshDisplayCapabilities()
+        isHDREnabled = hasHDRDisplay
         syncLightViewModel()
         lastScreenLayout = captureScreenLayout()
         rebuildWindows()
         observeScreenChanges()
+        observeMouseLocation()
+    }
+
+    deinit {
+        if let globalMouseMonitor {
+            NSEvent.removeMonitor(globalMouseMonitor)
+        }
+
+        if let localMouseMonitor {
+            NSEvent.removeMonitor(localMouseMonitor)
+        }
     }
 
     func turnOn() {
         guard !isOn else { return }
         isOn = true
-        edgeWindows.forEach { $0.window.orderFront(nil) }
+        displayWindows.forEach { $0.window.orderFront(nil) }
     }
 
     func turnOff() {
         guard isOn else { return }
         isOn = false
-        edgeWindows.forEach { $0.window.orderOut(nil) }
+        displayWindows.forEach { $0.window.orderOut(nil) }
     }
 
     func toggleLight() {
@@ -75,7 +83,7 @@ final class LightController: ObservableObject {
         guard abs(borderWidth - clampedValue) > 1.0 else { return }
 
         borderWidth = clampedValue
-        updateWindowFrames()
+        syncLightViewModel()
     }
 
     func toggleHDRMode() {
@@ -103,8 +111,31 @@ final class LightController: ObservableObject {
         )
     }
 
+    private func observeMouseLocation() {
+        let mouseEvents: NSEvent.EventTypeMask = [
+            .mouseMoved,
+            .leftMouseDragged,
+            .rightMouseDragged,
+            .otherMouseDragged
+        ]
+
+        globalMouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: mouseEvents) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.updateMouseLocation()
+            }
+        }
+
+        localMouseMonitor = NSEvent.addLocalMonitorForEvents(matching: mouseEvents) { [weak self] event in
+            self?.updateMouseLocation()
+            return event
+        }
+
+        updateMouseLocation()
+    }
+
     @objc private func handleScreenParametersDidChange(_ notification: Notification) {
         let previousLayout = lastScreenLayout
+        let previouslyHadHDRDisplay = hasHDRDisplay
         let wasHDREnabled = isHDREnabled
 
         refreshDisplayCapabilities()
@@ -113,8 +144,10 @@ final class LightController: ObservableObject {
 
         if !hasHDRDisplay {
             isHDREnabled = false
-        } else if wasHDREnabled {
+        } else if !previouslyHadHDRDisplay {
             isHDREnabled = true
+        } else {
+            isHDREnabled = wasHDREnabled
         }
 
         syncLightViewModel()
@@ -168,34 +201,32 @@ final class LightController: ObservableObject {
         closeAllWindows()
 
         for screen in NSScreen.screens {
-            for edge in ScreenEdge.allCases {
-                if let edgeWindow = makeEdgeWindow(for: screen, edge: edge) {
-                    edgeWindows.append(edgeWindow)
-                }
+            if let displayWindow = makeDisplayWindow(for: screen) {
+                displayWindows.append(displayWindow)
             }
         }
 
         if shouldRemainVisible {
-            edgeWindows.forEach { $0.window.orderFront(nil) }
+            displayWindows.forEach { $0.window.orderFront(nil) }
         }
     }
 
     private func closeAllWindows() {
-        edgeWindows.forEach { edgeWindow in
-            edgeWindow.window.orderOut(nil)
-            edgeWindow.window.contentView = nil
-            edgeWindow.window.close()
+        displayWindows.forEach { displayWindow in
+            displayWindow.window.orderOut(nil)
+            displayWindow.window.contentView = nil
+            displayWindow.window.close()
         }
-        edgeWindows.removeAll()
+        displayWindows.removeAll()
     }
 
-    private func makeEdgeWindow(for screen: NSScreen, edge: ScreenEdge) -> EdgeWindow? {
-        let frame = frame(for: screen, edge: edge)
+    private func makeDisplayWindow(for screen: NSScreen) -> DisplayWindow? {
+        let frame = frame(for: screen)
         guard frame.width >= 1, frame.height >= 1 else {
             return nil
         }
 
-        let lightView = makeLightView()
+        let lightView = makeLightView(for: screen)
         let hostingView = NSHostingView(rootView: lightView)
         let window = NSWindow(
             contentRect: frame,
@@ -218,73 +249,35 @@ final class LightController: ObservableObject {
         applyEDRState(to: hostingView)
         window.orderOut(nil)
 
-        return EdgeWindow(
+        return DisplayWindow(
             displayID: displayID(for: screen),
-            edge: edge,
             window: window,
             hostingView: hostingView
         )
     }
 
-    private func frame(for screen: NSScreen, edge: ScreenEdge) -> NSRect {
-        let availableFrame = screen.visibleFrame
-        let width = min(borderWidth, availableFrame.width / 2)
-        let height = min(borderWidth, availableFrame.height / 2)
-        let verticalSpan = max(LightConfiguration.minimumSideWindowLength, availableFrame.height - (height * 2))
-
-        switch edge {
-        case .top:
-            return NSRect(
-                x: availableFrame.minX,
-                y: availableFrame.maxY - height,
-                width: availableFrame.width,
-                height: height
-            )
-
-        case .bottom:
-            return NSRect(
-                x: availableFrame.minX,
-                y: availableFrame.minY,
-                width: availableFrame.width,
-                height: height
-            )
-
-        case .left:
-            return NSRect(
-                x: availableFrame.minX,
-                y: availableFrame.minY + height,
-                width: width,
-                height: verticalSpan
-            )
-
-        case .right:
-            return NSRect(
-                x: availableFrame.maxX - width,
-                y: availableFrame.minY + height,
-                width: width,
-                height: verticalSpan
-            )
-        }
+    private func frame(for screen: NSScreen) -> NSRect {
+        screen.frame
     }
 
     private func updateWindowFrames() {
         let screensByID = Dictionary(uniqueKeysWithValues: NSScreen.screens.map { (displayID(for: $0), $0) })
 
-        for edgeWindow in edgeWindows {
-            guard let screen = screensByID[edgeWindow.displayID] else { continue }
+        for displayWindow in displayWindows {
+            guard let screen = screensByID[displayWindow.displayID] else { continue }
 
-            edgeWindow.window.setFrame(frame(for: screen, edge: edgeWindow.edge), display: true)
+            displayWindow.window.setFrame(frame(for: screen), display: true)
         }
     }
 
     private func refreshEDRState() {
-        for edgeWindow in edgeWindows {
-            applyEDRState(to: edgeWindow.hostingView)
+        for displayWindow in displayWindows {
+            applyEDRState(to: displayWindow.hostingView)
         }
     }
 
-    private func makeLightView() -> LightView {
-        LightView(model: lightViewModel)
+    private func makeLightView(for screen: NSScreen) -> LightView {
+        LightView(model: lightViewModel, screenFrame: screen.frame)
     }
 
     private func applyEDRState(to hostingView: NSHostingView<LightView>) {
@@ -297,8 +290,14 @@ final class LightController: ObservableObject {
         lightViewModel.update(
             brightness: brightness,
             isHDREnabled: isHDREnabled,
-            maxHDRFactor: maxHDRBrightness
+            maxHDRFactor: maxHDRBrightness,
+            borderWidth: borderWidth,
+            mouseLocation: NSEvent.mouseLocation
         )
+    }
+
+    private func updateMouseLocation() {
+        lightViewModel.updateMouseLocation(NSEvent.mouseLocation)
     }
 
     private func displayID(for screen: NSScreen) -> CGDirectDisplayID {

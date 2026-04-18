@@ -12,7 +12,8 @@
 "BORDER_WIDTH_MENU" = "補光燈尺寸";
 "HDR_MODE_ON" = "HDR模式: 開啟";
 "HDR_MODE_OFF" = "HDR模式: 關閉";
-"HDR_MODE_UNAVAILABLE" = "HDR模式: 無法使用";
+"HDR_MODE_UNAVAILABLE" = "這個顯示器不支援 HDR";
+"HDR_BUTTON_UNAVAILABLE" = "不支援";
 "ABOUT_LIGHT" = "關於 MacBrightFace";
 "QUIT" = "退出";
 

@@ -4,7 +4,7 @@ MacBrightFace transforms the edges of your display into a clean, adjustable fill
 
 MacBrightFace 是一个 macOS 菜单栏补光应用，通过点亮屏幕边缘来提供柔和且可控的人脸补光，适用于视频会议、直播以及低光环境下的工作场景。虽然较新的 macOS 版本已经开始提供系统自带的 [Edge Light](https://support.apple.com/125934) 视频补光效果，但如果你需要更强、更明显的补光表现，尤其是在支持 HDR 的显示器上，MacBrightFace 依然是更合适的选择。
 
-For a full Chinese README, see [docs/README.zh-CN.md](./docs/README.zh-CN.md).
+中文完整说明请见：[docs/README.zh-CN.md](./docs/README.zh-CN.md)。
 
 ## Why Use MacBrightFace
 

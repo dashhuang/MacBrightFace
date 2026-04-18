@@ -37,6 +37,14 @@ struct ContentView: View {
         return (lightController.isHDREnabled ? "HDR_MODE_ON" : "HDR_MODE_OFF").localized
     }
 
+    private var hdrButtonLabel: String {
+        guard lightController.supportsHDR() else {
+            return "HDR_BUTTON_UNAVAILABLE".localized
+        }
+
+        return lightController.isHDREnabled ? "关闭" : "开启"
+    }
+
     private var lightStatusLabel: String {
         lightController.isOn ? "TOGGLE_LIGHT_OFF".localized : "TOGGLE_LIGHT_ON".localized
     }
@@ -109,7 +117,7 @@ struct ContentView: View {
 
                 Spacer()
 
-                Button(lightController.isHDREnabled ? "关闭" : "开启") {
+                Button(hdrButtonLabel) {
                     lightController.toggleHDRMode()
                 }
                 .buttonStyle(.bordered)
