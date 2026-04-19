@@ -9,6 +9,7 @@
 "TOGGLE_LIGHT_ON" = "Turn On MacBrightFace";
 "TOGGLE_LIGHT_OFF" = "Turn Off MacBrightFace";
 "BRIGHTNESS_SLIDER" = "Adjust Brightness";
+"COLOR_TEMPERATURE" = "Color Temperature";
 "BORDER_WIDTH_MENU" = "Light Size";
 "HDR_MODE_ON" = "HDR Mode: On";
 "HDR_MODE_OFF" = "HDR Mode: Off";
@@ -19,4 +20,8 @@
 
 // UI labels
 "BRIGHTNESS_LABEL" = "Brightness: %@%%";
+"COLOR_TEMPERATURE_LABEL" = "Color Temperature: %@";
 "BORDER_WIDTH_LABEL" = "Light Size: %@ px";
+"LIGHT_TEMPERATURE_WARM" = "Warm";
+"LIGHT_TEMPERATURE_NEUTRAL" = "Neutral";
+"LIGHT_TEMPERATURE_COOL" = "Cool";

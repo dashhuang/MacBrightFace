@@ -9,6 +9,7 @@
 "TOGGLE_LIGHT_ON" = "開啟補光燈";
 "TOGGLE_LIGHT_OFF" = "關閉補光燈";
 "BRIGHTNESS_SLIDER" = "滑動調節亮度";
+"COLOR_TEMPERATURE" = "色溫";
 "BORDER_WIDTH_MENU" = "補光燈尺寸";
 "HDR_MODE_ON" = "HDR模式: 開啟";
 "HDR_MODE_OFF" = "HDR模式: 關閉";
@@ -19,4 +20,8 @@
 
 // UI labels
 "BRIGHTNESS_LABEL" = "亮度: %@%%";
+"COLOR_TEMPERATURE_LABEL" = "色溫: %@";
 "BORDER_WIDTH_LABEL" = "補光燈尺寸: %@ 像素";
+"LIGHT_TEMPERATURE_WARM" = "暖光";
+"LIGHT_TEMPERATURE_NEUTRAL" = "中性";
+"LIGHT_TEMPERATURE_COOL" = "冷光";

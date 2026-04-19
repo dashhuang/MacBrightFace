@@ -1,8 +1,10 @@
+import AppKit
 import SwiftUI
 
 @MainActor
 final class LightViewModel: ObservableObject {
     @Published private(set) var brightness: Double
+    @Published private(set) var colorTemperature: Double
     @Published private(set) var isHDREnabled: Bool
     @Published private(set) var maxHDRFactor: Double
     @Published private(set) var borderWidth: CGFloat
@@ -10,12 +12,14 @@ final class LightViewModel: ObservableObject {
 
     init(
         brightness: Double,
+        colorTemperature: Double,
         isHDREnabled: Bool,
         maxHDRFactor: Double,
         borderWidth: CGFloat,
         mouseLocation: CGPoint? = nil
     ) {
         self.brightness = brightness
+        self.colorTemperature = colorTemperature
         self.isHDREnabled = isHDREnabled
         self.maxHDRFactor = maxHDRFactor
         self.borderWidth = borderWidth
@@ -24,12 +28,14 @@ final class LightViewModel: ObservableObject {
 
     func update(
         brightness: Double,
+        colorTemperature: Double,
         isHDREnabled: Bool,
         maxHDRFactor: Double,
         borderWidth: CGFloat,
         mouseLocation: CGPoint? = nil
     ) {
         self.brightness = brightness
+        self.colorTemperature = colorTemperature
         self.isHDREnabled = isHDREnabled
         self.maxHDRFactor = maxHDRFactor
         self.borderWidth = borderWidth
@@ -84,6 +90,90 @@ struct LightView: View {
         pow(clampedBrightness, model.isHDREnabled ? 1.35 : 1.5)
     }
 
+    private var clampedColorTemperature: Double {
+        min(
+            LightConfiguration.colorTemperatureRange.upperBound,
+            max(LightConfiguration.colorTemperatureRange.lowerBound, model.colorTemperature)
+        )
+    }
+
+    private var temperatureStrength: Double {
+        abs(clampedColorTemperature - 0.5) * 2.0
+    }
+
+    private var warmLightColorComponents: (red: Double, green: Double, blue: Double) {
+        (red: 1.0, green: 0.74, blue: 0.42)
+    }
+
+    private var neutralLightColorComponents: (red: Double, green: Double, blue: Double) {
+        (red: 1.0, green: 0.985, blue: 0.965)
+    }
+
+    private var coolLightColorComponents: (red: Double, green: Double, blue: Double) {
+        (red: 0.58, green: 0.79, blue: 1.0)
+    }
+
+    private func lightColor(
+        red: Double,
+        green: Double,
+        blue: Double,
+        opacity: Double,
+        intensity: Double = 1.0
+    ) -> Color {
+        if model.isHDREnabled {
+            let extendedRed = red * intensity
+            let extendedGreen = green * intensity
+            let extendedBlue = blue * intensity
+
+            if
+                let colorSpace = CGColorSpace(name: CGColorSpace.extendedSRGB),
+                let cgColor = CGColor(
+                    colorSpace: colorSpace,
+                    components: [extendedRed, extendedGreen, extendedBlue, opacity]
+                )
+            {
+                return Color(cgColor: cgColor)
+            }
+        }
+
+        return Color(red: red, green: green, blue: blue, opacity: opacity)
+    }
+
+    private var hdrColorIntensity: Double {
+        model.isHDREnabled ? max(1.0, targetIntensity) : 1.0
+    }
+
+    private var baseLightColorComponents: (red: Double, green: Double, blue: Double) {
+        func interpolate(_ start: Double, _ end: Double, progress: Double) -> Double {
+            start + ((end - start) * progress)
+        }
+
+        if clampedColorTemperature <= 0.5 {
+            let progress = clampedColorTemperature / 0.5
+            return (
+                red: interpolate(warmLightColorComponents.red, neutralLightColorComponents.red, progress: progress),
+                green: interpolate(warmLightColorComponents.green, neutralLightColorComponents.green, progress: progress),
+                blue: interpolate(warmLightColorComponents.blue, neutralLightColorComponents.blue, progress: progress)
+            )
+        }
+
+        let progress = (clampedColorTemperature - 0.5) / 0.5
+        return (
+            red: interpolate(neutralLightColorComponents.red, coolLightColorComponents.red, progress: progress),
+            green: interpolate(neutralLightColorComponents.green, coolLightColorComponents.green, progress: progress),
+            blue: interpolate(neutralLightColorComponents.blue, coolLightColorComponents.blue, progress: progress)
+        )
+    }
+
+    private var highlightLightColorComponents: (red: Double, green: Double, blue: Double) {
+        let mixAmount = model.isHDREnabled ? 0.18 : 0.36
+        return (
+            red: 1.0 - ((1.0 - baseLightColorComponents.red) * (1.0 - mixAmount)),
+            green: 1.0 - ((1.0 - baseLightColorComponents.green) * (1.0 - mixAmount)),
+            blue: 1.0 - ((1.0 - baseLightColorComponents.blue) * (1.0 - mixAmount))
+        )
+    }
+
     private var targetIntensity: Double {
         let maxIntensity = model.isHDREnabled ? max(1.0, model.maxHDRFactor) : LightConfiguration.standardMaxBrightness
         let baseCurve = 0.18 + (curvedBrightness * 0.82)
@@ -92,7 +182,7 @@ struct LightView: View {
 
     private var baseOpacity: Double {
         if model.isHDREnabled {
-            return 0.10 + (clampedBrightness * 0.22)
+            return min(1.0, 0.20 + (curvedBrightness * 0.24) + (temperatureStrength * 0.06))
         }
 
         return 0.32 + (curvedBrightness * 0.36)
@@ -100,7 +190,7 @@ struct LightView: View {
 
     private var highlightOpacity: Double {
         if model.isHDREnabled {
-            return min(1.0, 0.16 + (targetIntensity * 0.18))
+            return min(1.0, 0.10 + (curvedBrightness * 0.14) + (temperatureStrength * 0.04))
         }
 
         return min(1.0, 0.14 + (targetIntensity * 0.10))
@@ -108,7 +198,7 @@ struct LightView: View {
 
     private var bloomOpacity: Double {
         if model.isHDREnabled {
-            return 0.08 + (clampedBrightness * 0.22)
+            return min(1.0, 0.10 + (curvedBrightness * 0.18) + (temperatureStrength * 0.05))
         }
 
         return 0.08 + (curvedBrightness * 0.16)
@@ -124,11 +214,11 @@ struct LightView: View {
     }
 
     private var brightnessAdjustment: Double {
-        targetIntensity * (model.isHDREnabled ? 0.18 : 0.14)
+        targetIntensity * (model.isHDREnabled ? 0.01 : 0.14)
     }
 
     private var contrastAdjustment: Double {
-        1.0 + (targetIntensity * (model.isHDREnabled ? 0.10 : 0.06))
+        1.0 + (targetIntensity * (model.isHDREnabled ? 0.01 : 0.06))
     }
 
     private func localMouseLocation(in size: CGSize) -> CGPoint? {
@@ -150,29 +240,65 @@ struct LightView: View {
                 min(geometry.size.width, geometry.size.height) * 0.18 + (ringThickness * 0.7)
             )
             let innerHighlightThickness = max(6.0, ringThickness * 0.72)
-            let hdrBloomOpacity = 0.06 + (clampedBrightness * 0.12)
+            let hdrBloomOpacity = min(1.0, 0.10 + (curvedBrightness * 0.16) + (temperatureStrength * 0.06))
             let cutoutCenter = localMouseLocation(in: geometry.size)
             let cutoutDiameter = LightConfiguration.pointerCutoutRadius * 2
             let cutoutBlur = LightConfiguration.pointerCutoutFeather
 
             ZStack {
                 LightRingShape(thickness: ringThickness * 1.06, cornerRadius: cornerRadius)
-                    .fill(Color.white.opacity(bloomOpacity), style: FillStyle(eoFill: true))
+                    .fill(
+                        lightColor(
+                            red: baseLightColorComponents.red,
+                            green: baseLightColorComponents.green,
+                            blue: baseLightColorComponents.blue,
+                            opacity: bloomOpacity,
+                            intensity: model.isHDREnabled ? hdrColorIntensity * 0.88 : 1.0
+                        ),
+                        style: FillStyle(eoFill: true)
+                    )
                     .blur(radius: outerBloomRadius)
 
                 LightRingShape(thickness: ringThickness, cornerRadius: cornerRadius)
-                    .fill(Color.white.opacity(baseOpacity), style: FillStyle(eoFill: true))
+                    .fill(
+                        lightColor(
+                            red: baseLightColorComponents.red,
+                            green: baseLightColorComponents.green,
+                            blue: baseLightColorComponents.blue,
+                            opacity: baseOpacity,
+                            intensity: model.isHDREnabled ? hdrColorIntensity : 1.0
+                        ),
+                        style: FillStyle(eoFill: true)
+                    )
 
                 LightRingShape(
                     thickness: innerHighlightThickness,
                     cornerRadius: max(0, cornerRadius - (ringThickness - innerHighlightThickness) * 0.5)
                 )
-                .fill(Color.white.opacity(highlightOpacity), style: FillStyle(eoFill: true))
+                .fill(
+                    lightColor(
+                        red: highlightLightColorComponents.red,
+                        green: highlightLightColorComponents.green,
+                        blue: highlightLightColorComponents.blue,
+                        opacity: highlightOpacity,
+                        intensity: model.isHDREnabled ? hdrColorIntensity * 1.04 : 1.0
+                    ),
+                    style: FillStyle(eoFill: true)
+                )
                 .blur(radius: coreBloomRadius)
 
                 if model.isHDREnabled {
                     LightRingShape(thickness: ringThickness * 0.88, cornerRadius: cornerRadius)
-                        .fill(Color.white.opacity(hdrBloomOpacity), style: FillStyle(eoFill: true))
+                        .fill(
+                            lightColor(
+                                red: baseLightColorComponents.red,
+                                green: baseLightColorComponents.green,
+                                blue: baseLightColorComponents.blue,
+                                opacity: hdrBloomOpacity,
+                                intensity: hdrColorIntensity * 1.18
+                            ),
+                            style: FillStyle(eoFill: true)
+                        )
                         .blur(radius: outerBloomRadius * 1.2)
                 }
             }
@@ -194,7 +320,10 @@ struct LightView: View {
         .ignoresSafeArea()
         .brightness(brightnessAdjustment)
         .contrast(contrastAdjustment)
-        .saturation(1.0 + (model.isHDREnabled ? clampedBrightness * 0.03 : 0.0))
+        .saturation(
+            1.0
+            + (model.isHDREnabled ? (temperatureStrength * 0.24) + (clampedBrightness * 0.02) : temperatureStrength * 0.10)
+        )
     }
 }
 
@@ -202,6 +331,7 @@ struct LightView: View {
     LightView(
         model: LightViewModel(
             brightness: 0.35,
+            colorTemperature: LightConfiguration.defaultColorTemperature,
             isHDREnabled: false,
             maxHDRFactor: 2.0,
             borderWidth: 80.0,

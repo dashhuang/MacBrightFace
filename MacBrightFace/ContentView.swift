@@ -12,6 +12,13 @@ struct ContentView: View {
         )
     }
 
+    private var colorTemperatureBinding: Binding<Double> {
+        Binding(
+            get: { lightController.colorTemperature },
+            set: { lightController.setColorTemperature($0) }
+        )
+    }
+
     private var borderWidthBinding: Binding<Double> {
         Binding(
             get: { Double(lightController.borderWidth) },
@@ -27,6 +34,10 @@ struct ContentView: View {
     private var borderWidthLabel: String {
         let width = Int(lightController.borderWidth.rounded())
         return "BORDER_WIDTH_LABEL".localizedFormat(String(width))
+    }
+
+    private var colorTemperatureLabel: String {
+        "COLOR_TEMPERATURE_LABEL".localizedFormat(colorTemperatureValueLabel)
     }
 
     private var hdrLabel: String {
@@ -55,6 +66,17 @@ struct ContentView: View {
 
     private var sizeValueLabel: String {
         "\(Int(lightController.borderWidth.rounded())) px"
+    }
+
+    private var colorTemperatureValueLabel: String {
+        switch lightController.colorTemperature {
+        case ..<0.35:
+            return "LIGHT_TEMPERATURE_WARM".localized
+        case 0.65...:
+            return "LIGHT_TEMPERATURE_COOL".localized
+        default:
+            return "LIGHT_TEMPERATURE_NEUTRAL".localized
+        }
     }
 
     var body: some View {
@@ -93,6 +115,24 @@ struct ContentView: View {
                 footer: brightnessLabel
             ) {
                 Slider(value: brightnessBinding, in: LightConfiguration.brightnessRange)
+            }
+
+            controlCard(
+                title: "COLOR_TEMPERATURE".localized,
+                value: colorTemperatureValueLabel,
+                footer: colorTemperatureLabel
+            ) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Slider(value: colorTemperatureBinding, in: LightConfiguration.colorTemperatureRange)
+
+                    HStack {
+                        Text("LIGHT_TEMPERATURE_WARM".localized)
+                        Spacer()
+                        Text("LIGHT_TEMPERATURE_COOL".localized)
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                }
             }
 
             controlCard(

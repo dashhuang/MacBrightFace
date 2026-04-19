@@ -11,6 +11,7 @@ final class LightController: ObservableObject {
 
     @Published private(set) var isOn = false
     @Published private(set) var brightness = LightConfiguration.defaultBrightness
+    @Published private(set) var colorTemperature = LightConfiguration.defaultColorTemperature
     @Published private(set) var isHDREnabled = false
     @Published private(set) var hasHDRDisplay = false
     @Published private(set) var borderWidth = LightConfiguration.defaultBorderWidth
@@ -28,6 +29,7 @@ final class LightController: ObservableObject {
     private var localMouseMonitor: Any?
     private let lightViewModel = LightViewModel(
         brightness: LightConfiguration.defaultBrightness,
+        colorTemperature: LightConfiguration.defaultColorTemperature,
         isHDREnabled: false,
         maxHDRFactor: 1.0,
         borderWidth: LightConfiguration.defaultBorderWidth,
@@ -75,6 +77,14 @@ final class LightController: ObservableObject {
         guard abs(brightness - clampedValue) > 0.01 else { return }
 
         brightness = clampedValue
+        syncLightViewModel()
+    }
+
+    func setColorTemperature(_ value: Double) {
+        let clampedValue = min(LightConfiguration.colorTemperatureRange.upperBound, max(LightConfiguration.colorTemperatureRange.lowerBound, value))
+        guard abs(colorTemperature - clampedValue) > 0.01 else { return }
+
+        colorTemperature = clampedValue
         syncLightViewModel()
     }
 
@@ -289,6 +299,7 @@ final class LightController: ObservableObject {
     private func syncLightViewModel() {
         lightViewModel.update(
             brightness: brightness,
+            colorTemperature: colorTemperature,
             isHDREnabled: isHDREnabled,
             maxHDRFactor: maxHDRBrightness,
             borderWidth: borderWidth,
