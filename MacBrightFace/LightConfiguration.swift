@@ -10,7 +10,6 @@ enum LightConfiguration {
     static let defaultBorderWidth: CGFloat = 80.0
 
     static let standardMaxBrightness = 1.35
-    static let practicalHDRHeadroom = 16.0
     static let minimumCornerRadius: CGFloat = 44.0
     static let pointerCutoutRadius: CGFloat = 162.0
     static let pointerCutoutFeather: CGFloat = 72.0

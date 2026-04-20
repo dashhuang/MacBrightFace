@@ -176,12 +176,9 @@ final class LightController: ObservableObject {
 
         if #available(macOS 11.0, *) {
             for screen in NSScreen.screens {
-                let potentialHDRValue = screen.maximumPotentialExtendedDynamicRangeColorComponentValue
-                let currentHDRValue = screen.maximumExtendedDynamicRangeColorComponentValue
-                let effectiveHDRValue = max(currentHDRValue, potentialHDRValue)
-
-                detectedMaxHDRBrightness = max(detectedMaxHDRBrightness, effectiveHDRValue)
-                detectedHDR = detectedHDR || potentialHDRValue > 1.0
+                let hdrValue = screen.maximumPotentialExtendedDynamicRangeColorComponentValue
+                detectedMaxHDRBrightness = max(detectedMaxHDRBrightness, hdrValue)
+                detectedHDR = detectedHDR || hdrValue > 1.0
             }
         }
 
@@ -294,24 +291,9 @@ final class LightController: ObservableObject {
     }
 
     private func applyEDRState(to hostingView: NSHostingView<LightView>) {
-        guard let layer = hostingView.layer else { return }
+        guard #available(macOS 10.15, *) else { return }
 
-        if #available(macOS 26.0, *) {
-            let shouldEnableHDR = isHDREnabled
-                && hasHDRDisplay
-                && !NSApp.applicationShouldSuppressHighDynamicRangeContent
-
-            layer.preferredDynamicRange = shouldEnableHDR ? .high : .standard
-            layer.contentsHeadroom = shouldEnableHDR
-                ? CGFloat(max(1.0, min(maxHDRBrightness, LightConfiguration.practicalHDRHeadroom)))
-                : 0.0
-            layer.toneMapMode = shouldEnableHDR ? .never : .automatic
-            return
-        }
-
-        if #available(macOS 10.15, *) {
-            layer.wantsExtendedDynamicRangeContent = isHDREnabled
-        }
+        hostingView.layer?.wantsExtendedDynamicRangeContent = isHDREnabled
     }
 
     private func syncLightViewModel() {

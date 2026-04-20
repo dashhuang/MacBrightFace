@@ -121,17 +121,6 @@ struct LightView: View {
         intensity: Double = 1.0
     ) -> Color {
         if model.isHDREnabled {
-            if #available(macOS 26.0, *) {
-                let hdrColor = NSColor(
-                    red: red,
-                    green: green,
-                    blue: blue,
-                    alpha: opacity,
-                    linearExposure: intensity
-                )
-                return Color(hdrColor)
-            }
-
             let extendedRed = red * intensity
             let extendedGreen = green * intensity
             let extendedBlue = blue * intensity
@@ -152,13 +141,6 @@ struct LightView: View {
 
     private var hdrColorIntensity: Double {
         model.isHDREnabled ? max(1.0, targetIntensity) : 1.0
-    }
-
-    private var effectiveHDRHeadroom: Double {
-        max(
-            LightConfiguration.standardMaxBrightness,
-            min(model.maxHDRFactor, LightConfiguration.practicalHDRHeadroom)
-        )
     }
 
     private var baseLightColorComponents: (red: Double, green: Double, blue: Double) {
@@ -193,18 +175,14 @@ struct LightView: View {
     }
 
     private var targetIntensity: Double {
-        if model.isHDREnabled {
-            let baseCurve = 0.24 + (curvedBrightness * 0.76)
-            return effectiveHDRHeadroom * baseCurve
-        }
-
+        let maxIntensity = model.isHDREnabled ? max(1.0, model.maxHDRFactor) : LightConfiguration.standardMaxBrightness
         let baseCurve = 0.18 + (curvedBrightness * 0.82)
-        return LightConfiguration.standardMaxBrightness * baseCurve
+        return maxIntensity * baseCurve
     }
 
     private var baseOpacity: Double {
         if model.isHDREnabled {
-            return min(1.0, 0.40 + (curvedBrightness * 0.48) + (temperatureStrength * 0.08))
+            return min(1.0, 0.20 + (curvedBrightness * 0.24) + (temperatureStrength * 0.06))
         }
 
         return 0.32 + (curvedBrightness * 0.36)
@@ -212,7 +190,7 @@ struct LightView: View {
 
     private var highlightOpacity: Double {
         if model.isHDREnabled {
-            return min(1.0, 0.20 + (curvedBrightness * 0.18) + (temperatureStrength * 0.04))
+            return min(1.0, 0.10 + (curvedBrightness * 0.14) + (temperatureStrength * 0.04))
         }
 
         return min(1.0, 0.14 + (targetIntensity * 0.10))
@@ -220,27 +198,23 @@ struct LightView: View {
 
     private var bloomOpacity: Double {
         if model.isHDREnabled {
-            return min(1.0, 0.22 + (curvedBrightness * 0.36) + (temperatureStrength * 0.06))
+            return min(1.0, 0.10 + (curvedBrightness * 0.18) + (temperatureStrength * 0.05))
         }
 
         return 0.08 + (curvedBrightness * 0.16)
     }
 
-    private var hdrPeakOpacity: Double {
-        min(1.0, 0.22 + (curvedBrightness * 0.24) + (temperatureStrength * 0.04))
-    }
-
     private var coreBloomRadius: CGFloat {
-        let baseRadius = model.isHDREnabled ? 16.0 : 20.0
+        let baseRadius = model.isHDREnabled ? 26.0 : 20.0
         return max(10.0, baseRadius + (model.borderWidth * 0.10) - (clampedBrightness * 6.0))
     }
 
     private var outerBloomRadius: CGFloat {
-        coreBloomRadius + (model.isHDREnabled ? 20.0 : 16.0)
+        coreBloomRadius + (model.isHDREnabled ? 24.0 : 16.0)
     }
 
     private var brightnessAdjustment: Double {
-        targetIntensity * (model.isHDREnabled ? 0.0 : 0.14)
+        targetIntensity * (model.isHDREnabled ? 0.01 : 0.14)
     }
 
     private var contrastAdjustment: Double {
@@ -265,132 +239,82 @@ struct LightView: View {
                 LightConfiguration.minimumCornerRadius,
                 min(geometry.size.width, geometry.size.height) * 0.18 + (ringThickness * 0.7)
             )
-            let innerHighlightThickness = model.isHDREnabled ? max(5.0, ringThickness * 0.42) : max(6.0, ringThickness * 0.72)
-            let hdrPeakThickness = model.isHDREnabled ? max(3.0, ringThickness * 0.18) : 0.0
-            let hdrBloomOpacity = min(1.0, 0.22 + (curvedBrightness * 0.34) + (temperatureStrength * 0.08))
-            let hdrPeakBlurRadius = max(4.0, coreBloomRadius * 0.45)
+            let innerHighlightThickness = max(6.0, ringThickness * 0.72)
+            let hdrBloomOpacity = min(1.0, 0.10 + (curvedBrightness * 0.16) + (temperatureStrength * 0.06))
             let cutoutCenter = localMouseLocation(in: geometry.size)
             let cutoutDiameter = LightConfiguration.pointerCutoutRadius * 2
             let cutoutBlur = LightConfiguration.pointerCutoutFeather
-            let canvasRect = CGRect(origin: .zero, size: geometry.size)
-            let outerBloomPath = LightRingShape(thickness: ringThickness * 1.06, cornerRadius: cornerRadius).path(in: canvasRect)
-            let baseRingPath = LightRingShape(thickness: ringThickness, cornerRadius: cornerRadius).path(in: canvasRect)
-            let highlightPath = LightRingShape(
-                thickness: innerHighlightThickness,
-                cornerRadius: max(0, cornerRadius - (ringThickness - innerHighlightThickness) * 0.5)
-            ).path(in: canvasRect)
-            let hdrPeakPath = model.isHDREnabled
-                ? LightRingShape(
-                    thickness: hdrPeakThickness,
-                    cornerRadius: max(0, cornerRadius - (ringThickness - hdrPeakThickness) * 0.5)
-                ).path(in: canvasRect)
-                : Path()
-            let hdrBloomPath = LightRingShape(thickness: ringThickness * 0.88, cornerRadius: cornerRadius).path(in: canvasRect)
 
-            Canvas(opaque: false, colorMode: .linear, rendersAsynchronously: false) { context, _ in
-                context.drawLayer { layer in
-                    layer.addFilter(.blur(radius: outerBloomRadius))
-                    layer.fill(
-                        outerBloomPath,
-                        with: .color(
-                            lightColor(
-                                red: baseLightColorComponents.red,
-                                green: baseLightColorComponents.green,
-                                blue: baseLightColorComponents.blue,
-                                opacity: bloomOpacity,
-                                intensity: model.isHDREnabled ? hdrColorIntensity * 1.10 : 1.0
-                            )
+            ZStack {
+                LightRingShape(thickness: ringThickness * 1.06, cornerRadius: cornerRadius)
+                    .fill(
+                        lightColor(
+                            red: baseLightColorComponents.red,
+                            green: baseLightColorComponents.green,
+                            blue: baseLightColorComponents.blue,
+                            opacity: bloomOpacity,
+                            intensity: model.isHDREnabled ? hdrColorIntensity * 0.88 : 1.0
                         ),
                         style: FillStyle(eoFill: true)
                     )
-                }
+                    .blur(radius: outerBloomRadius)
 
-                context.fill(
-                    baseRingPath,
-                    with: .color(
+                LightRingShape(thickness: ringThickness, cornerRadius: cornerRadius)
+                    .fill(
                         lightColor(
                             red: baseLightColorComponents.red,
                             green: baseLightColorComponents.green,
                             blue: baseLightColorComponents.blue,
                             opacity: baseOpacity,
-                            intensity: model.isHDREnabled ? hdrColorIntensity * 1.12 : 1.0
-                        )
-                    ),
-                    style: FillStyle(eoFill: true)
-                )
-
-                context.drawLayer { layer in
-                    layer.addFilter(.blur(radius: coreBloomRadius))
-                    layer.fill(
-                        highlightPath,
-                        with: .color(
-                            lightColor(
-                                red: highlightLightColorComponents.red,
-                                green: highlightLightColorComponents.green,
-                                blue: highlightLightColorComponents.blue,
-                                opacity: highlightOpacity,
-                                intensity: model.isHDREnabled ? hdrColorIntensity * 1.22 : 1.0
-                            )
+                            intensity: model.isHDREnabled ? hdrColorIntensity : 1.0
                         ),
                         style: FillStyle(eoFill: true)
                     )
-                }
+
+                LightRingShape(
+                    thickness: innerHighlightThickness,
+                    cornerRadius: max(0, cornerRadius - (ringThickness - innerHighlightThickness) * 0.5)
+                )
+                .fill(
+                    lightColor(
+                        red: highlightLightColorComponents.red,
+                        green: highlightLightColorComponents.green,
+                        blue: highlightLightColorComponents.blue,
+                        opacity: highlightOpacity,
+                        intensity: model.isHDREnabled ? hdrColorIntensity * 1.04 : 1.0
+                    ),
+                    style: FillStyle(eoFill: true)
+                )
+                .blur(radius: coreBloomRadius)
 
                 if model.isHDREnabled {
-                    context.drawLayer { layer in
-                        layer.addFilter(.blur(radius: hdrPeakBlurRadius))
-                        layer.fill(
-                            hdrPeakPath,
-                            with: .color(
-                                lightColor(
-                                    red: highlightLightColorComponents.red,
-                                    green: highlightLightColorComponents.green,
-                                    blue: highlightLightColorComponents.blue,
-                                    opacity: hdrPeakOpacity,
-                                    intensity: hdrColorIntensity * 2.15
-                                )
+                    LightRingShape(thickness: ringThickness * 0.88, cornerRadius: cornerRadius)
+                        .fill(
+                            lightColor(
+                                red: baseLightColorComponents.red,
+                                green: baseLightColorComponents.green,
+                                blue: baseLightColorComponents.blue,
+                                opacity: hdrBloomOpacity,
+                                intensity: hdrColorIntensity * 1.18
                             ),
                             style: FillStyle(eoFill: true)
                         )
-                    }
-
-                    context.drawLayer { layer in
-                        layer.addFilter(.blur(radius: outerBloomRadius * 1.2))
-                        layer.fill(
-                            hdrBloomPath,
-                            with: .color(
-                                lightColor(
-                                    red: baseLightColorComponents.red,
-                                    green: baseLightColorComponents.green,
-                                    blue: baseLightColorComponents.blue,
-                                    opacity: hdrBloomOpacity,
-                                    intensity: hdrColorIntensity * 1.38
-                                )
-                            ),
-                            style: FillStyle(eoFill: true)
-                        )
-                    }
-                }
-
-                if let cutoutCenter {
-                    context.drawLayer { layer in
-                        layer.addFilter(.blur(radius: cutoutBlur))
-                        layer.blendMode = .destinationOut
-                        layer.fill(
-                            Path(
-                                ellipseIn: CGRect(
-                                    x: cutoutCenter.x - (cutoutDiameter / 2),
-                                    y: cutoutCenter.y - (cutoutDiameter / 2),
-                                    width: cutoutDiameter,
-                                    height: cutoutDiameter
-                                )
-                            ),
-                            with: .color(.black)
-                        )
-                    }
+                        .blur(radius: outerBloomRadius * 1.2)
                 }
             }
             .frame(width: geometry.size.width, height: geometry.size.height)
+            .compositingGroup()
+            .overlay {
+                if let cutoutCenter {
+                    Circle()
+                        .fill(Color.black)
+                        .frame(width: cutoutDiameter, height: cutoutDiameter)
+                        .position(cutoutCenter)
+                        .blur(radius: cutoutBlur)
+                        .blendMode(.destinationOut)
+                }
+            }
+            .compositingGroup()
         }
         .background(Color.clear)
         .ignoresSafeArea()
@@ -398,7 +322,7 @@ struct LightView: View {
         .contrast(contrastAdjustment)
         .saturation(
             1.0
-            + (model.isHDREnabled ? (temperatureStrength * 0.28) + (clampedBrightness * 0.04) : temperatureStrength * 0.10)
+            + (model.isHDREnabled ? (temperatureStrength * 0.24) + (clampedBrightness * 0.02) : temperatureStrength * 0.10)
         )
     }
 }
