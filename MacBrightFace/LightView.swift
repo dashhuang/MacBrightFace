@@ -166,7 +166,11 @@ struct LightView: View {
     }
 
     private var highlightLightColorComponents: (red: Double, green: Double, blue: Double) {
-        let mixAmount = model.isHDREnabled ? 0.18 : 0.36
+        if model.isHDREnabled {
+            return baseLightColorComponents
+        }
+
+        let mixAmount = 0.36
         return (
             red: 1.0 - ((1.0 - baseLightColorComponents.red) * (1.0 - mixAmount)),
             green: 1.0 - ((1.0 - baseLightColorComponents.green) * (1.0 - mixAmount)),
@@ -185,7 +189,7 @@ struct LightView: View {
             return min(1.0, 0.20 + (curvedBrightness * 0.24) + (temperatureStrength * 0.06))
         }
 
-        return 0.32 + (curvedBrightness * 0.36)
+        return min(1.0, 0.24 + (curvedBrightness * 0.76))
     }
 
     private var highlightOpacity: Double {
@@ -193,7 +197,7 @@ struct LightView: View {
             return min(1.0, 0.10 + (curvedBrightness * 0.14) + (temperatureStrength * 0.04))
         }
 
-        return min(1.0, 0.14 + (targetIntensity * 0.10))
+        return min(1.0, 0.08 + (curvedBrightness * 0.28) + (targetIntensity * 0.10))
     }
 
     private var bloomOpacity: Double {
@@ -201,7 +205,7 @@ struct LightView: View {
             return min(1.0, 0.10 + (curvedBrightness * 0.18) + (temperatureStrength * 0.05))
         }
 
-        return 0.08 + (curvedBrightness * 0.16)
+        return min(1.0, 0.06 + (curvedBrightness * 0.22))
     }
 
     private var coreBloomRadius: CGFloat {
@@ -214,11 +218,15 @@ struct LightView: View {
     }
 
     private var brightnessAdjustment: Double {
-        targetIntensity * (model.isHDREnabled ? 0.01 : 0.14)
+        model.isHDREnabled ? 0.0 : targetIntensity * 0.14
     }
 
     private var contrastAdjustment: Double {
-        1.0 + (targetIntensity * (model.isHDREnabled ? 0.01 : 0.06))
+        model.isHDREnabled ? 1.0 : 1.0 + (targetIntensity * 0.06)
+    }
+
+    private var saturationAdjustment: Double {
+        model.isHDREnabled ? 1.0 : 1.0 + (temperatureStrength * 0.10)
     }
 
     private func localMouseLocation(in size: CGSize) -> CGPoint? {
@@ -320,10 +328,7 @@ struct LightView: View {
         .ignoresSafeArea()
         .brightness(brightnessAdjustment)
         .contrast(contrastAdjustment)
-        .saturation(
-            1.0
-            + (model.isHDREnabled ? (temperatureStrength * 0.24) + (clampedBrightness * 0.02) : temperatureStrength * 0.10)
-        )
+        .saturation(saturationAdjustment)
     }
 }
 
