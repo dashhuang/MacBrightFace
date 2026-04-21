@@ -16,7 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setupStatusBarItem()
         setupStatusPopover()
         observeControllerState()
-        lightController.turnOn()
+        lightController.completeLaunch()
     }
 
     func applicationWillTerminate(_ notification: Notification) {

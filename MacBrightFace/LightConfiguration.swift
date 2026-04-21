@@ -2,17 +2,37 @@ import CoreGraphics
 
 enum LightEffectMode: String, CaseIterable, Identifiable {
     case normal
+    case professional
     case police
     case fireTruck
+    case campfire
     case disco
 
     var id: String { rawValue }
 
     var supportsColorTemperatureControl: Bool {
         switch self {
-        case .normal:
+        case .normal, .professional:
             return true
-        case .police, .fireTruck, .disco:
+        case .police, .fireTruck, .campfire, .disco:
+            return false
+        }
+    }
+
+    var supportsDirectionalLights: Bool {
+        switch self {
+        case .professional:
+            return true
+        case .normal, .police, .fireTruck, .campfire, .disco:
+            return false
+        }
+    }
+
+    var usesAnimatedTimeline: Bool {
+        switch self {
+        case .police, .fireTruck, .campfire, .disco:
+            return true
+        case .normal, .professional:
             return false
         }
     }
@@ -26,6 +46,9 @@ enum LightConfiguration {
 
     static let borderWidthRange: ClosedRange<CGFloat> = 60.0...220.0
     static let defaultBorderWidth: CGFloat = 80.0
+    static let directionalLightAngleRange: ClosedRange<Double> = 0.0...360.0
+    static let defaultPrimaryDirectionalLightAngle = 130.0
+    static let defaultSecondaryDirectionalLightAngle = 68.0
 
     static let standardMaxBrightness = 1.35
     static let minimumCornerRadius: CGFloat = 44.0

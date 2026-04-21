@@ -9,6 +9,8 @@ final class LightViewModel: ObservableObject {
     @Published private(set) var maxHDRFactor: Double
     @Published private(set) var borderWidth: CGFloat
     @Published private(set) var effectMode: LightEffectMode
+    @Published private(set) var primaryDirectionalLightAngle: Double
+    @Published private(set) var secondaryDirectionalLightAngle: Double
     @Published private(set) var mouseLocation: CGPoint?
 
     init(
@@ -18,6 +20,8 @@ final class LightViewModel: ObservableObject {
         maxHDRFactor: Double,
         borderWidth: CGFloat,
         effectMode: LightEffectMode,
+        primaryDirectionalLightAngle: Double,
+        secondaryDirectionalLightAngle: Double,
         mouseLocation: CGPoint? = nil
     ) {
         self.brightness = brightness
@@ -26,6 +30,8 @@ final class LightViewModel: ObservableObject {
         self.maxHDRFactor = maxHDRFactor
         self.borderWidth = borderWidth
         self.effectMode = effectMode
+        self.primaryDirectionalLightAngle = primaryDirectionalLightAngle
+        self.secondaryDirectionalLightAngle = secondaryDirectionalLightAngle
         self.mouseLocation = mouseLocation
     }
 
@@ -36,6 +42,8 @@ final class LightViewModel: ObservableObject {
         maxHDRFactor: Double,
         borderWidth: CGFloat,
         effectMode: LightEffectMode,
+        primaryDirectionalLightAngle: Double,
+        secondaryDirectionalLightAngle: Double,
         mouseLocation: CGPoint? = nil
     ) {
         self.brightness = brightness
@@ -44,6 +52,8 @@ final class LightViewModel: ObservableObject {
         self.maxHDRFactor = maxHDRFactor
         self.borderWidth = borderWidth
         self.effectMode = effectMode
+        self.primaryDirectionalLightAngle = primaryDirectionalLightAngle
+        self.secondaryDirectionalLightAngle = secondaryDirectionalLightAngle
         if let mouseLocation {
             self.mouseLocation = mouseLocation
         }
@@ -94,6 +104,11 @@ private struct EffectFrameState {
 private enum EffectEdge {
     case leading
     case trailing
+}
+
+private enum DirectionalLightRole {
+    case key
+    case fill
 }
 
 struct LightView: View {
@@ -263,6 +278,18 @@ struct LightView: View {
         (red: 1.0, green: 0.58, blue: 0.08)
     }
 
+    private var campfireGoldColorComponents: (red: Double, green: Double, blue: Double) {
+        (red: 1.0, green: 0.76, blue: 0.18)
+    }
+
+    private var campfireOrangeColorComponents: (red: Double, green: Double, blue: Double) {
+        (red: 1.0, green: 0.46, blue: 0.08)
+    }
+
+    private var campfireEmberColorComponents: (red: Double, green: Double, blue: Double) {
+        (red: 0.92, green: 0.20, blue: 0.06)
+    }
+
     private var discoMagentaColorComponents: (red: Double, green: Double, blue: Double) {
         (red: 1.0, green: 0.12, blue: 0.76)
     }
@@ -336,6 +363,14 @@ struct LightView: View {
                 trailingPower: 0.0,
                 ambientPower: 0.0
             )
+        case .professional:
+            return EffectFrameState(
+                leadingColor: baseLightColorComponents,
+                trailingColor: baseLightColorComponents,
+                leadingPower: 0.0,
+                trailingPower: 0.0,
+                ambientPower: 0.0
+            )
         case .police:
             let cycle = 1.18
             let phase = time.truncatingRemainder(dividingBy: cycle)
@@ -361,6 +396,33 @@ struct LightView: View {
             return EffectFrameState(
                 leadingColor: fireRedColorComponents,
                 trailingColor: fireAmberColorComponents,
+                leadingPower: leadingPower,
+                trailingPower: trailingPower,
+                ambientPower: ambientPower
+            )
+        case .campfire:
+            let flameDrift = 0.5 + (sin(time * 1.18) * 0.5)
+            let flickerA = 0.5 + (sin((time * 4.6) + 0.8) * 0.5)
+            let flickerB = 0.5 + (sin((time * 7.9) + 2.1) * 0.5)
+            let emberPulse = 0.5 + (sin((time * 2.7) - 0.6) * 0.5)
+            let sparkLick = 0.5 + (sin((time * 11.8) + (sin(time * 1.9) * 0.9)) * 0.5)
+            let leadingPower = min(1.0, max(0.0, 0.26 + (flickerA * 0.34) + (sparkLick * 0.24)))
+            let trailingPower = min(1.0, max(0.0, 0.22 + (flickerB * 0.30) + (emberPulse * 0.28)))
+            let ambientPower = min(1.0, 0.22 + ((flickerA + flickerB) * 0.10) + (emberPulse * 0.14))
+            let leadingColor = blendedColorComponents(
+                campfireGoldColorComponents,
+                campfireOrangeColorComponents,
+                amount: (flameDrift * 0.58) + (sparkLick * 0.12)
+            )
+            let trailingColor = blendedColorComponents(
+                campfireOrangeColorComponents,
+                campfireEmberColorComponents,
+                amount: (emberPulse * 0.62) + ((1.0 - flameDrift) * 0.12)
+            )
+
+            return EffectFrameState(
+                leadingColor: leadingColor,
+                trailingColor: trailingColor,
                 leadingPower: leadingPower,
                 trailingPower: trailingPower,
                 ambientPower: ambientPower
@@ -412,6 +474,28 @@ struct LightView: View {
             x: (mouseLocation.x - screenFrame.minX) + LightConfiguration.pointerVisualCenterOffsetX,
             y: (size.height - (mouseLocation.y - screenFrame.minY)) + LightConfiguration.pointerVisualCenterOffsetY
         )
+    }
+
+    private func directionalLightPosition(
+        angle: Double,
+        in size: CGSize
+    ) -> CGPoint {
+        let radians = angle * .pi / 180
+        let center = CGPoint(x: size.width / 2, y: size.height / 2)
+        let dx = cos(radians)
+        let dy = -sin(radians)
+        let xReach = (size.width / 2) / max(abs(dx), 0.0001)
+        let yReach = (size.height / 2) / max(abs(dy), 0.0001)
+        let travel = min(xReach, yReach)
+
+        return CGPoint(
+            x: center.x + (dx * travel),
+            y: center.y + (dy * travel)
+        )
+    }
+
+    private func beamRotation(for angle: Double) -> Angle {
+        .degrees(-angle)
     }
 
     private func gradientStops(
@@ -567,9 +651,15 @@ struct LightView: View {
         cornerRadius: CGFloat,
         innerHighlightThickness: CGFloat,
         coreBloomRadius: CGFloat,
-        outerBloomRadius: CGFloat
+        outerBloomRadius: CGFloat,
+        brightnessScale: Double = 1.0
     ) -> some View {
-        let hdrBloomOpacity = min(1.0, 0.10 + (curvedBrightness * 0.16) + (temperatureStrength * 0.06))
+        let clampedBrightnessScale = min(1.0, max(0.0, brightnessScale))
+        let hdrBloomOpacity = min(1.0, (0.10 + (curvedBrightness * 0.16) + (temperatureStrength * 0.06)) * clampedBrightnessScale)
+        let baseLayerOpacity = baseOpacity * clampedBrightnessScale
+        let highlightLayerOpacity = highlightOpacity * clampedBrightnessScale
+        let bloomLayerOpacity = bloomOpacity * clampedBrightnessScale
+        let ringIntensityScale = model.isHDREnabled ? clampedBrightnessScale : 1.0
 
         ZStack {
             LightRingShape(thickness: ringThickness * 1.06, cornerRadius: cornerRadius)
@@ -578,8 +668,8 @@ struct LightView: View {
                         red: baseLightColorComponents.red,
                         green: baseLightColorComponents.green,
                         blue: baseLightColorComponents.blue,
-                        opacity: bloomOpacity,
-                        intensity: model.isHDREnabled ? hdrColorIntensity * 0.88 : 1.0
+                        opacity: bloomLayerOpacity,
+                        intensity: model.isHDREnabled ? hdrColorIntensity * 0.88 * ringIntensityScale : 1.0
                     ),
                     style: FillStyle(eoFill: true)
                 )
@@ -591,8 +681,8 @@ struct LightView: View {
                         red: baseLightColorComponents.red,
                         green: baseLightColorComponents.green,
                         blue: baseLightColorComponents.blue,
-                        opacity: baseOpacity,
-                        intensity: model.isHDREnabled ? hdrColorIntensity : 1.0
+                        opacity: baseLayerOpacity,
+                        intensity: model.isHDREnabled ? hdrColorIntensity * ringIntensityScale : 1.0
                     ),
                     style: FillStyle(eoFill: true)
                 )
@@ -606,8 +696,8 @@ struct LightView: View {
                     red: highlightLightColorComponents.red,
                     green: highlightLightColorComponents.green,
                     blue: highlightLightColorComponents.blue,
-                    opacity: highlightOpacity,
-                    intensity: model.isHDREnabled ? hdrColorIntensity * 1.04 : 1.0
+                    opacity: highlightLayerOpacity,
+                    intensity: model.isHDREnabled ? hdrColorIntensity * 1.04 * ringIntensityScale : 1.0
                 ),
                 style: FillStyle(eoFill: true)
             )
@@ -621,12 +711,230 @@ struct LightView: View {
                             green: baseLightColorComponents.green,
                             blue: baseLightColorComponents.blue,
                             opacity: hdrBloomOpacity,
-                            intensity: hdrColorIntensity * 1.18
+                            intensity: hdrColorIntensity * 1.18 * ringIntensityScale
                         ),
                         style: FillStyle(eoFill: true)
                     )
                     .blur(radius: outerBloomRadius * 1.2)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func directionalStudioLight(
+        size: CGSize,
+        angle: Double,
+        energy: Double,
+        role: DirectionalLightRole
+    ) -> some View {
+        let maxDimension = max(size.width, size.height)
+        let center = CGPoint(x: size.width / 2, y: size.height / 2)
+        let brightnessScale = min(1.0, max(0.0, energy))
+        let isKeyLight = role == .key
+        let isSDRKeyLight = isKeyLight && !model.isHDREnabled
+        let sourcePoint = directionalLightPosition(angle: angle, in: size)
+        // `beamPoint` is measured from screen center toward the source point.
+        // Keeping the beam anchor near the edge prevents the professional lights
+        // from leaving a visible white patch in the middle of the screen.
+        let beamReach = isKeyLight ? 0.82 : 0.74
+        let beamPoint = CGPoint(
+            x: center.x + ((sourcePoint.x - center.x) * beamReach),
+            y: center.y + ((sourcePoint.y - center.y) * beamReach)
+        )
+        let ambientDiameter = maxDimension * (isKeyLight ? 0.82 : 0.60)
+        let coreDiameter = maxDimension * (isKeyLight ? 0.52 : 0.36)
+        let haloDiameter = maxDimension * (isKeyLight ? 0.30 : 0.20)
+        let hotspotDiameter = maxDimension * (isKeyLight ? 0.22 : 0.14)
+        let sourcePlateDiameter = hotspotDiameter * (isSDRKeyLight ? 0.92 : 0.72)
+        let beamWidth = maxDimension * (isKeyLight ? 0.74 : 0.50)
+        let beamHeight = maxDimension * (isKeyLight ? 0.28 : 0.18)
+        let sizeScale = isKeyLight ? 0.5 : 1.0
+        let sourceSpreadScale = isSDRKeyLight ? 0.68 : 1.0
+        let beamScale = isSDRKeyLight ? 0.32 : (isKeyLight ? 0.44 : 0.40)
+        let ambientOpacity = min(
+            1.0,
+            isSDRKeyLight
+                ? 0.34 + (curvedBrightness * 0.30 * brightnessScale)
+                : (isKeyLight ? 0.20 : 0.10) + (curvedBrightness * (isKeyLight ? 0.32 : 0.18) * brightnessScale)
+        )
+        let coreOpacity = min(
+            1.0,
+            isSDRKeyLight
+                ? 0.52 + (curvedBrightness * 0.28 * brightnessScale)
+                : (isKeyLight ? 0.28 : 0.12) + (curvedBrightness * (isKeyLight ? 0.36 : 0.20) * brightnessScale)
+        )
+        let haloOpacity = min(
+            1.0,
+            isSDRKeyLight
+                ? 0.28 + (curvedBrightness * 0.22 * brightnessScale)
+                : (isKeyLight ? 0.16 : 0.08) + (curvedBrightness * (isKeyLight ? 0.22 : 0.12) * brightnessScale)
+        )
+        let hotspotOpacity = min(
+            1.0,
+            isSDRKeyLight
+                ? 0.74 + (curvedBrightness * 0.22 * brightnessScale)
+                : (isKeyLight ? 0.30 : 0.12) + (curvedBrightness * (isKeyLight ? 0.28 : 0.10) * brightnessScale)
+        )
+        let beamOpacity = min(
+            1.0,
+            isSDRKeyLight
+                ? 0.14 + (curvedBrightness * 0.10 * brightnessScale)
+                : (isKeyLight ? 0.16 : 0.07) + (curvedBrightness * (isKeyLight ? 0.22 : 0.11) * brightnessScale)
+        )
+        let sourcePlateOpacity = min(1.0, 0.56 + (curvedBrightness * 0.44 * brightnessScale))
+        let hdrIntensityBoost = isKeyLight ? 1.12 : 1.0
+        let intensity = model.isHDREnabled ? max(0.0, hdrColorIntensity * brightnessScale * hdrIntensityBoost) : 1.0
+        let sourcePlateColor = blendedColorComponents(
+            highlightLightColorComponents,
+            (red: 1.0, green: 1.0, blue: 1.0),
+            amount: isSDRKeyLight ? 0.72 : 0.28
+        )
+
+        Circle()
+            .fill(
+                lightColor(
+                    red: baseLightColorComponents.red,
+                    green: baseLightColorComponents.green,
+                    blue: baseLightColorComponents.blue,
+                    opacity: ambientOpacity,
+                    intensity: intensity
+                )
+            )
+            .frame(width: ambientDiameter * sizeScale * sourceSpreadScale, height: ambientDiameter * sizeScale * sourceSpreadScale)
+            .position(sourcePoint)
+            .blur(radius: maxDimension * (isSDRKeyLight ? 0.022 : (isKeyLight ? 0.035 : 0.048)))
+
+        Ellipse()
+            .fill(
+                LinearGradient(
+                    colors: [
+                        lightColor(
+                            red: baseLightColorComponents.red,
+                            green: baseLightColorComponents.green,
+                            blue: baseLightColorComponents.blue,
+                            opacity: beamOpacity,
+                            intensity: intensity
+                        ),
+                        lightColor(
+                            red: baseLightColorComponents.red,
+                            green: baseLightColorComponents.green,
+                            blue: baseLightColorComponents.blue,
+                            opacity: beamOpacity * 0.38,
+                            intensity: intensity
+                        ),
+                        lightColor(
+                            red: baseLightColorComponents.red,
+                            green: baseLightColorComponents.green,
+                            blue: baseLightColorComponents.blue,
+                            opacity: 0.0,
+                            intensity: intensity
+                        )
+                    ],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .frame(width: beamWidth * sizeScale * beamScale, height: beamHeight * sizeScale * beamScale)
+            .rotationEffect(beamRotation(for: angle))
+            .position(beamPoint)
+            .blur(radius: maxDimension * (isSDRKeyLight ? 0.010 : (isKeyLight ? 0.021 : 0.026)))
+
+        Circle()
+            .fill(
+                lightColor(
+                    red: highlightLightColorComponents.red,
+                    green: highlightLightColorComponents.green,
+                    blue: highlightLightColorComponents.blue,
+                    opacity: coreOpacity,
+                    intensity: model.isHDREnabled ? intensity * 1.06 : 1.0
+                )
+            )
+            .frame(width: coreDiameter * sizeScale * sourceSpreadScale, height: coreDiameter * sizeScale * sourceSpreadScale)
+            .position(sourcePoint)
+            .blur(radius: maxDimension * (isSDRKeyLight ? 0.012 : (isKeyLight ? 0.021 : 0.026)))
+
+        Circle()
+            .fill(
+                lightColor(
+                    red: highlightLightColorComponents.red,
+                    green: highlightLightColorComponents.green,
+                    blue: highlightLightColorComponents.blue,
+                    opacity: haloOpacity,
+                    intensity: model.isHDREnabled ? intensity * 1.10 : 1.0
+                )
+            )
+            .frame(width: haloDiameter * sizeScale * sourceSpreadScale, height: haloDiameter * sizeScale * sourceSpreadScale)
+            .position(sourcePoint)
+            .blur(radius: maxDimension * (isSDRKeyLight ? 0.008 : (isKeyLight ? 0.013 : 0.016)))
+
+        if isSDRKeyLight {
+            Circle()
+                .fill(
+                    lightColor(
+                        red: sourcePlateColor.red,
+                        green: sourcePlateColor.green,
+                        blue: sourcePlateColor.blue,
+                        opacity: sourcePlateOpacity,
+                        intensity: 1.0
+                    )
+                )
+                .frame(width: sourcePlateDiameter * sizeScale, height: sourcePlateDiameter * sizeScale)
+                .position(sourcePoint)
+                .blur(radius: maxDimension * 0.004)
+        }
+
+        Circle()
+            .fill(
+                lightColor(
+                    red: highlightLightColorComponents.red,
+                    green: highlightLightColorComponents.green,
+                    blue: highlightLightColorComponents.blue,
+                    opacity: hotspotOpacity,
+                    intensity: model.isHDREnabled ? intensity * (isKeyLight ? 1.18 : 1.06) : 1.0
+                )
+            )
+            .frame(width: hotspotDiameter * sizeScale, height: hotspotDiameter * sizeScale)
+            .position(sourcePoint)
+            .blur(radius: maxDimension * (isKeyLight ? 0.009 : 0.010))
+    }
+
+    @ViewBuilder
+    private func professionalLightScene(
+        size: CGSize,
+        ringThickness: CGFloat,
+        cornerRadius: CGFloat,
+        innerHighlightThickness: CGFloat,
+        coreBloomRadius: CGFloat,
+        outerBloomRadius: CGFloat
+    ) -> some View {
+        let primaryEnergy = 1.0
+        let secondaryEnergy = 0.6
+        let ringBrightnessScale = 0.3
+
+        ZStack {
+            directionalStudioLight(
+                size: size,
+                angle: model.secondaryDirectionalLightAngle,
+                energy: secondaryEnergy,
+                role: .fill
+            )
+
+            directionalStudioLight(
+                size: size,
+                angle: model.primaryDirectionalLightAngle,
+                energy: primaryEnergy,
+                role: .key
+            )
+
+            normalLightScene(
+                size: size,
+                ringThickness: ringThickness,
+                cornerRadius: cornerRadius,
+                innerHighlightThickness: innerHighlightThickness,
+                coreBloomRadius: coreBloomRadius,
+                outerBloomRadius: outerBloomRadius,
+                brightnessScale: ringBrightnessScale
+            )
         }
     }
 
@@ -739,7 +1047,16 @@ struct LightView: View {
             let cutoutBlur = LightConfiguration.pointerCutoutFeather
 
             ZStack {
-                if model.effectMode == .normal || time == nil {
+                if model.effectMode == .professional {
+                    professionalLightScene(
+                        size: geometry.size,
+                        ringThickness: ringThickness,
+                        cornerRadius: cornerRadius,
+                        innerHighlightThickness: innerHighlightThickness,
+                        coreBloomRadius: coreBloomRadius,
+                        outerBloomRadius: outerBloomRadius
+                    )
+                } else if model.effectMode == .normal || time == nil {
                     normalLightScene(
                         size: geometry.size,
                         ringThickness: ringThickness,
@@ -783,12 +1100,12 @@ struct LightView: View {
 
     var body: some View {
         Group {
-            if model.effectMode == .normal {
-                renderBody(at: nil)
-            } else {
+            if model.effectMode.usesAnimatedTimeline {
                 TimelineView(.periodic(from: .now, by: 1.0 / 24.0)) { context in
                     renderBody(at: context.date.timeIntervalSinceReferenceDate)
                 }
+            } else {
+                renderBody(at: nil)
             }
         }
     }
@@ -803,6 +1120,8 @@ struct LightView: View {
             maxHDRFactor: 2.0,
             borderWidth: 80.0,
             effectMode: .normal,
+            primaryDirectionalLightAngle: LightConfiguration.defaultPrimaryDirectionalLightAngle,
+            secondaryDirectionalLightAngle: LightConfiguration.defaultSecondaryDirectionalLightAngle,
             mouseLocation: CGPoint(x: 260, y: 260)
         ),
         screenFrame: CGRect(x: 0, y: 0, width: 600, height: 400)

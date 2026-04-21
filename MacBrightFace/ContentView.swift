@@ -26,6 +26,20 @@ struct ContentView: View {
         )
     }
 
+    private var primaryDirectionalLightAngleBinding: Binding<Double> {
+        Binding(
+            get: { lightController.primaryDirectionalLightAngle },
+            set: { lightController.setPrimaryDirectionalLightAngle($0) }
+        )
+    }
+
+    private var secondaryDirectionalLightAngleBinding: Binding<Double> {
+        Binding(
+            get: { lightController.secondaryDirectionalLightAngle },
+            set: { lightController.setSecondaryDirectionalLightAngle($0) }
+        )
+    }
+
     private var hdrLabel: String {
         if !lightController.supportsHDR() {
             return "HDR_MODE_UNAVAILABLE".localized
@@ -44,6 +58,10 @@ struct ContentView: View {
 
     private var effectModeValueLabel: String {
         lightController.effectMode.localizedTitle
+    }
+
+    private var showsDirectionalLightCard: Bool {
+        lightController.effectMode.supportsDirectionalLights
     }
 
     private var lightStatusLabel: String {
@@ -200,6 +218,10 @@ struct ContentView: View {
 
                 effectMenuCard
 
+                if showsDirectionalLightCard {
+                    directionalLightAnglesCard
+                }
+
                 HStack(alignment: .center, spacing: 12) {
                     VStack(alignment: .leading, spacing: 3) {
                         Text("HDR")
@@ -289,6 +311,37 @@ struct ContentView: View {
             }
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color.white.opacity(0.42))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(Color.white.opacity(0.35), lineWidth: 1)
+                )
+        )
+    }
+
+    private var directionalLightAnglesCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("PRO_DIRECTIONAL_LIGHT_ANGLES".localized)
+                .font(.system(size: 13, weight: .semibold))
+
+            HStack(spacing: 10) {
+                AngleDial(
+                    value: primaryDirectionalLightAngleBinding,
+                    label: "PRO_DIRECTIONAL_LIGHT_PRIMARY".localized,
+                    accentColor: Color(red: 1.00, green: 0.57, blue: 0.20)
+                )
+
+                AngleDial(
+                    value: secondaryDirectionalLightAngleBinding,
+                    label: "PRO_DIRECTIONAL_LIGHT_SECONDARY".localized,
+                    accentColor: Color(red: 1.00, green: 0.73, blue: 0.28)
+                )
+            }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
@@ -407,6 +460,89 @@ private struct PillSlider: View {
     }
 }
 
+private struct AngleDial: View {
+    @Binding var value: Double
+    let label: String
+    let accentColor: Color
+
+    private let dialSize: CGFloat = 118
+    private let knobSize: CGFloat = 18
+
+    private var clampedValue: Double {
+        min(LightConfiguration.directionalLightAngleRange.upperBound, max(LightConfiguration.directionalLightAngleRange.lowerBound, value))
+    }
+
+    private var formattedValue: String {
+        "\(Int(clampedValue.rounded()))°"
+    }
+
+    var body: some View {
+        VStack(spacing: 8) {
+            ZStack {
+                Circle()
+                    .fill(Color.white.opacity(0.42))
+                    .overlay(
+                        Circle()
+                            .stroke(Color.white.opacity(0.78), lineWidth: 1)
+                    )
+
+                Circle()
+                    .stroke(Color.black.opacity(0.08), lineWidth: 11)
+
+                Circle()
+                    .stroke(accentColor.opacity(0.55), style: StrokeStyle(lineWidth: 6, lineCap: .round))
+                    .frame(width: dialSize * 0.66, height: dialSize * 0.66)
+
+                Capsule(style: .continuous)
+                    .fill(accentColor.opacity(0.24))
+                    .frame(width: dialSize * 0.42, height: 4)
+                    .offset(x: dialVector(length: dialSize * 0.14).width / 2, y: dialVector(length: dialSize * 0.14).height / 2)
+                    .rotationEffect(.degrees(-clampedValue))
+
+                Circle()
+                    .fill(accentColor)
+                    .frame(width: knobSize, height: knobSize)
+                    .shadow(color: accentColor.opacity(0.28), radius: 4, x: 0, y: 2)
+                    .offset(x: dialVector(length: dialSize * 0.33).width, y: dialVector(length: dialSize * 0.33).height)
+
+                VStack(spacing: 2) {
+                    Text(formattedValue)
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                    Text(label)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(width: dialSize, height: dialSize)
+            .contentShape(Circle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { gesture in
+                        let center = CGPoint(x: dialSize / 2, y: dialSize / 2)
+                        let dx = gesture.location.x - center.x
+                        let dy = center.y - gesture.location.y
+                        guard abs(dx) > 0.001 || abs(dy) > 0.001 else { return }
+
+                        var angle = atan2(dy, dx) * 180 / .pi
+                        if angle < 0 {
+                            angle += 360
+                        }
+                        value = angle
+                    }
+            )
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func dialVector(length: CGFloat) -> CGSize {
+        let radians = clampedValue * .pi / 180
+        return CGSize(
+            width: cos(radians) * length,
+            height: -sin(radians) * length
+        )
+    }
+}
+
 #Preview {
     ContentView(
         lightController: LightController(),
@@ -420,10 +556,14 @@ private extension LightEffectMode {
         switch self {
         case .normal:
             return "LIGHT_EFFECT_NORMAL".localized
+        case .professional:
+            return "LIGHT_EFFECT_PROFESSIONAL".localized
         case .police:
             return "LIGHT_EFFECT_POLICE".localized
         case .fireTruck:
             return "LIGHT_EFFECT_FIRE_TRUCK".localized
+        case .campfire:
+            return "LIGHT_EFFECT_CAMPFIRE".localized
         case .disco:
             return "LIGHT_EFFECT_DISCO".localized
         }
@@ -433,10 +573,14 @@ private extension LightEffectMode {
         switch self {
         case .normal:
             return "light.min"
+        case .professional:
+            return "light.beacon.max.fill"
         case .police:
             return "lightswitch.on"
         case .fireTruck:
             return "flame.fill"
+        case .campfire:
+            return "tent.2.fill"
         case .disco:
             return "sparkles"
         }

@@ -3,6 +3,17 @@ import SwiftUI
 
 @MainActor
 final class LightController: ObservableObject {
+    private enum DefaultsKey {
+        static let isOn = "cn.huang.dash.MacBrightFace.isOn"
+        static let brightness = "cn.huang.dash.MacBrightFace.brightness"
+        static let colorTemperature = "cn.huang.dash.MacBrightFace.colorTemperature"
+        static let hdrPreference = "cn.huang.dash.MacBrightFace.hdrPreference"
+        static let borderWidth = "cn.huang.dash.MacBrightFace.borderWidth"
+        static let effectMode = "cn.huang.dash.MacBrightFace.effectMode"
+        static let primaryDirectionalLightAngle = "cn.huang.dash.MacBrightFace.primaryDirectionalLightAngle"
+        static let secondaryDirectionalLightAngle = "cn.huang.dash.MacBrightFace.secondaryDirectionalLightAngle"
+    }
+
     private struct ScreenLayoutSignature: Equatable {
         let displayID: CGDirectDisplayID
         let frame: CGRect
@@ -16,6 +27,8 @@ final class LightController: ObservableObject {
     @Published private(set) var hasHDRDisplay = false
     @Published private(set) var borderWidth = LightConfiguration.defaultBorderWidth
     @Published private(set) var effectMode: LightEffectMode = .normal
+    @Published private(set) var primaryDirectionalLightAngle = LightConfiguration.defaultPrimaryDirectionalLightAngle
+    @Published private(set) var secondaryDirectionalLightAngle = LightConfiguration.defaultSecondaryDirectionalLightAngle
 
     private struct DisplayWindow {
         let displayID: CGDirectDisplayID
@@ -28,6 +41,9 @@ final class LightController: ObservableObject {
     private var lastScreenLayout: [ScreenLayoutSignature] = []
     private var globalMouseMonitor: Any?
     private var localMouseMonitor: Any?
+    private let userDefaults = UserDefaults.standard
+    private var preferredHDREnabled = true
+    private var hasCompletedLaunch = false
     private let lightViewModel = LightViewModel(
         brightness: LightConfiguration.defaultBrightness,
         colorTemperature: LightConfiguration.defaultColorTemperature,
@@ -35,17 +51,21 @@ final class LightController: ObservableObject {
         maxHDRFactor: 1.0,
         borderWidth: LightConfiguration.defaultBorderWidth,
         effectMode: .normal,
+        primaryDirectionalLightAngle: LightConfiguration.defaultPrimaryDirectionalLightAngle,
+        secondaryDirectionalLightAngle: LightConfiguration.defaultSecondaryDirectionalLightAngle,
         mouseLocation: NSEvent.mouseLocation
     )
 
     init() {
+        restoreSettings()
         refreshDisplayCapabilities()
-        isHDREnabled = hasHDRDisplay
+        isHDREnabled = hasHDRDisplay && preferredHDREnabled
         syncLightViewModel()
         lastScreenLayout = captureScreenLayout()
         rebuildWindows()
         observeScreenChanges()
         observeMouseLocation()
+        persistSettings()
     }
 
     deinit {
@@ -61,13 +81,15 @@ final class LightController: ObservableObject {
     func turnOn() {
         guard !isOn else { return }
         isOn = true
-        displayWindows.forEach { $0.window.orderFront(nil) }
+        showAllWindows()
+        persistSettings()
     }
 
     func turnOff() {
         guard isOn else { return }
         isOn = false
         displayWindows.forEach { $0.window.orderOut(nil) }
+        persistSettings()
     }
 
     func toggleLight() {
@@ -80,6 +102,7 @@ final class LightController: ObservableObject {
 
         brightness = clampedValue
         syncLightViewModel()
+        persistSettings()
     }
 
     func setColorTemperature(_ value: Double) {
@@ -88,6 +111,7 @@ final class LightController: ObservableObject {
 
         colorTemperature = clampedValue
         syncLightViewModel()
+        persistSettings()
     }
 
     func setBorderWidth(_ value: CGFloat) {
@@ -96,6 +120,7 @@ final class LightController: ObservableObject {
 
         borderWidth = clampedValue
         syncLightViewModel()
+        persistSettings()
     }
 
     func setEffectMode(_ mode: LightEffectMode) {
@@ -103,14 +128,41 @@ final class LightController: ObservableObject {
 
         effectMode = mode
         syncLightViewModel()
+        persistSettings()
+    }
+
+    func setPrimaryDirectionalLightAngle(_ value: Double) {
+        let clampedValue = min(
+            LightConfiguration.directionalLightAngleRange.upperBound,
+            max(LightConfiguration.directionalLightAngleRange.lowerBound, value)
+        )
+        guard abs(primaryDirectionalLightAngle - clampedValue) > 0.5 else { return }
+
+        primaryDirectionalLightAngle = clampedValue
+        syncLightViewModel()
+        persistSettings()
+    }
+
+    func setSecondaryDirectionalLightAngle(_ value: Double) {
+        let clampedValue = min(
+            LightConfiguration.directionalLightAngleRange.upperBound,
+            max(LightConfiguration.directionalLightAngleRange.lowerBound, value)
+        )
+        guard abs(secondaryDirectionalLightAngle - clampedValue) > 0.5 else { return }
+
+        secondaryDirectionalLightAngle = clampedValue
+        syncLightViewModel()
+        persistSettings()
     }
 
     func toggleHDRMode() {
         guard hasHDRDisplay else { return }
 
-        isHDREnabled.toggle()
+        preferredHDREnabled.toggle()
+        isHDREnabled = hasHDRDisplay && preferredHDREnabled
         refreshEDRState()
         syncLightViewModel()
+        persistSettings()
     }
 
     func supportsHDR() -> Bool {
@@ -119,6 +171,34 @@ final class LightController: ObservableObject {
 
     func getMaxHDRBrightness() -> Double {
         maxHDRBrightness
+    }
+
+    func completeLaunch() {
+        guard !hasCompletedLaunch else {
+            if isOn {
+                showAllWindows()
+            }
+            return
+        }
+
+        hasCompletedLaunch = true
+        refreshDisplayCapabilities()
+        isHDREnabled = hasHDRDisplay && preferredHDREnabled
+        syncLightViewModel()
+
+        let currentLayout = captureScreenLayout()
+        let needsWindowRefresh = displayWindows.count != currentLayout.count || currentLayout != lastScreenLayout
+        lastScreenLayout = currentLayout
+
+        if needsWindowRefresh {
+            rebuildWindows()
+        } else {
+            updateWindowFrames()
+            refreshEDRState()
+            if isOn {
+                showAllWindows()
+            }
+        }
     }
 
     private func observeScreenChanges() {
@@ -154,21 +234,12 @@ final class LightController: ObservableObject {
 
     @objc private func handleScreenParametersDidChange(_ notification: Notification) {
         let previousLayout = lastScreenLayout
-        let previouslyHadHDRDisplay = hasHDRDisplay
-        let wasHDREnabled = isHDREnabled
 
         refreshDisplayCapabilities()
         let currentLayout = captureScreenLayout()
         lastScreenLayout = currentLayout
 
-        if !hasHDRDisplay {
-            isHDREnabled = false
-        } else if !previouslyHadHDRDisplay {
-            isHDREnabled = true
-        } else {
-            isHDREnabled = wasHDREnabled
-        }
-
+        isHDREnabled = hasHDRDisplay && preferredHDREnabled
         syncLightViewModel()
 
         if previousLayout != currentLayout {
@@ -225,8 +296,8 @@ final class LightController: ObservableObject {
             }
         }
 
-        if shouldRemainVisible {
-            displayWindows.forEach { $0.window.orderFront(nil) }
+        if shouldRemainVisible && hasCompletedLaunch {
+            showAllWindows()
         }
     }
 
@@ -295,6 +366,16 @@ final class LightController: ObservableObject {
         }
     }
 
+    private func showAllWindows() {
+        for displayWindow in displayWindows {
+            displayWindow.hostingView.layoutSubtreeIfNeeded()
+            displayWindow.hostingView.displayIfNeeded()
+            displayWindow.window.contentView?.displayIfNeeded()
+            displayWindow.window.orderFront(nil)
+            displayWindow.window.displayIfNeeded()
+        }
+    }
+
     private func makeLightView(for screen: NSScreen) -> LightView {
         LightView(model: lightViewModel, screenFrame: screen.frame)
     }
@@ -313,6 +394,8 @@ final class LightController: ObservableObject {
             maxHDRFactor: maxHDRBrightness,
             borderWidth: borderWidth,
             effectMode: effectMode,
+            primaryDirectionalLightAngle: primaryDirectionalLightAngle,
+            secondaryDirectionalLightAngle: secondaryDirectionalLightAngle,
             mouseLocation: NSEvent.mouseLocation
         )
     }
@@ -323,5 +406,57 @@ final class LightController: ObservableObject {
 
     private func displayID(for screen: NSScreen) -> CGDirectDisplayID {
         screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID ?? 0
+    }
+
+    private func restoreSettings() {
+        isOn = userDefaults.object(forKey: DefaultsKey.isOn) as? Bool ?? true
+        brightness = clamped(
+            userDefaults.object(forKey: DefaultsKey.brightness) as? Double ?? LightConfiguration.defaultBrightness,
+            to: LightConfiguration.brightnessRange
+        )
+        colorTemperature = clamped(
+            userDefaults.object(forKey: DefaultsKey.colorTemperature) as? Double ?? LightConfiguration.defaultColorTemperature,
+            to: LightConfiguration.colorTemperatureRange
+        )
+        preferredHDREnabled = userDefaults.object(forKey: DefaultsKey.hdrPreference) as? Bool ?? true
+        borderWidth = CGFloat(
+            clamped(
+                userDefaults.object(forKey: DefaultsKey.borderWidth) as? Double ?? Double(LightConfiguration.defaultBorderWidth),
+                to: Double(LightConfiguration.borderWidthRange.lowerBound)...Double(LightConfiguration.borderWidthRange.upperBound)
+            )
+        )
+
+        if
+            let rawEffectMode = userDefaults.string(forKey: DefaultsKey.effectMode),
+            let restoredEffectMode = LightEffectMode(rawValue: rawEffectMode)
+        {
+            effectMode = restoredEffectMode
+        }
+
+        primaryDirectionalLightAngle = clamped(
+            userDefaults.object(forKey: DefaultsKey.primaryDirectionalLightAngle) as? Double
+                ?? LightConfiguration.defaultPrimaryDirectionalLightAngle,
+            to: LightConfiguration.directionalLightAngleRange
+        )
+        secondaryDirectionalLightAngle = clamped(
+            userDefaults.object(forKey: DefaultsKey.secondaryDirectionalLightAngle) as? Double
+                ?? LightConfiguration.defaultSecondaryDirectionalLightAngle,
+            to: LightConfiguration.directionalLightAngleRange
+        )
+    }
+
+    private func persistSettings() {
+        userDefaults.set(isOn, forKey: DefaultsKey.isOn)
+        userDefaults.set(brightness, forKey: DefaultsKey.brightness)
+        userDefaults.set(colorTemperature, forKey: DefaultsKey.colorTemperature)
+        userDefaults.set(preferredHDREnabled, forKey: DefaultsKey.hdrPreference)
+        userDefaults.set(Double(borderWidth), forKey: DefaultsKey.borderWidth)
+        userDefaults.set(effectMode.rawValue, forKey: DefaultsKey.effectMode)
+        userDefaults.set(primaryDirectionalLightAngle, forKey: DefaultsKey.primaryDirectionalLightAngle)
+        userDefaults.set(secondaryDirectionalLightAngle, forKey: DefaultsKey.secondaryDirectionalLightAngle)
+    }
+
+    private func clamped<T: Comparable>(_ value: T, to range: ClosedRange<T>) -> T {
+        min(range.upperBound, max(range.lowerBound, value))
     }
 }
