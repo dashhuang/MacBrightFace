@@ -3,20 +3,36 @@ import SwiftUI
 
 @MainActor
 final class LightViewModel: ObservableObject {
-    @Published private(set) var brightness: Double
-    @Published private(set) var colorTemperature: Double
-    @Published private(set) var isHDREnabled: Bool
-    @Published private(set) var maxHDRFactor: Double
-    @Published private(set) var borderWidth: CGFloat
-    @Published private(set) var effectMode: LightEffectMode
-    @Published private(set) var primaryDirectionalLightAngle: Double
-    @Published private(set) var secondaryDirectionalLightAngle: Double
-    @Published private(set) var mouseLocation: CGPoint?
+    let persistentID: String
+    @Published var displayID: CGDirectDisplayID
+    @Published var displayName: String
+    @Published var screenFrame: CGRect
+    @Published var visibleFrame: CGRect
+    @Published var isOn: Bool
+    @Published var brightness: Double
+    @Published var colorTemperature: Double
+    @Published var isHDREnabled: Bool
+    @Published var hasHDRDisplay: Bool
+    @Published var maxHDRFactor: Double
+    @Published var borderWidth: CGFloat
+    @Published var effectMode: LightEffectMode
+    @Published var primaryDirectionalLightAngle: Double
+    @Published var secondaryDirectionalLightAngle: Double
+    @Published var mouseLocation: CGPoint?
+    var preferredHDREnabled: Bool
 
     init(
+        persistentID: String,
+        displayID: CGDirectDisplayID,
+        displayName: String,
+        screenFrame: CGRect,
+        visibleFrame: CGRect,
+        isOn: Bool,
         brightness: Double,
         colorTemperature: Double,
         isHDREnabled: Bool,
+        hasHDRDisplay: Bool,
+        preferredHDREnabled: Bool,
         maxHDRFactor: Double,
         borderWidth: CGFloat,
         effectMode: LightEffectMode,
@@ -24,39 +40,23 @@ final class LightViewModel: ObservableObject {
         secondaryDirectionalLightAngle: Double,
         mouseLocation: CGPoint? = nil
     ) {
+        self.persistentID = persistentID
+        self.displayID = displayID
+        self.displayName = displayName
+        self.screenFrame = screenFrame
+        self.visibleFrame = visibleFrame
+        self.isOn = isOn
         self.brightness = brightness
         self.colorTemperature = colorTemperature
         self.isHDREnabled = isHDREnabled
+        self.hasHDRDisplay = hasHDRDisplay
+        self.preferredHDREnabled = preferredHDREnabled
         self.maxHDRFactor = maxHDRFactor
         self.borderWidth = borderWidth
         self.effectMode = effectMode
         self.primaryDirectionalLightAngle = primaryDirectionalLightAngle
         self.secondaryDirectionalLightAngle = secondaryDirectionalLightAngle
         self.mouseLocation = mouseLocation
-    }
-
-    func update(
-        brightness: Double,
-        colorTemperature: Double,
-        isHDREnabled: Bool,
-        maxHDRFactor: Double,
-        borderWidth: CGFloat,
-        effectMode: LightEffectMode,
-        primaryDirectionalLightAngle: Double,
-        secondaryDirectionalLightAngle: Double,
-        mouseLocation: CGPoint? = nil
-    ) {
-        self.brightness = brightness
-        self.colorTemperature = colorTemperature
-        self.isHDREnabled = isHDREnabled
-        self.maxHDRFactor = maxHDRFactor
-        self.borderWidth = borderWidth
-        self.effectMode = effectMode
-        self.primaryDirectionalLightAngle = primaryDirectionalLightAngle
-        self.secondaryDirectionalLightAngle = secondaryDirectionalLightAngle
-        if let mouseLocation {
-            self.mouseLocation = mouseLocation
-        }
     }
 
     func updateMouseLocation(_ mouseLocation: CGPoint?) {
@@ -113,7 +113,6 @@ private enum DirectionalLightRole {
 
 struct LightView: View {
     @ObservedObject var model: LightViewModel
-    let screenFrame: CGRect
 
     private var clampedBrightness: Double {
         min(LightConfiguration.brightnessRange.upperBound, max(LightConfiguration.brightnessRange.lowerBound, model.brightness))
@@ -466,13 +465,13 @@ struct LightView: View {
     }
 
     private func localMouseLocation(in size: CGSize) -> CGPoint? {
-        guard let mouseLocation = model.mouseLocation, screenFrame.contains(mouseLocation) else {
+        guard let mouseLocation = model.mouseLocation, model.screenFrame.contains(mouseLocation) else {
             return nil
         }
 
         return CGPoint(
-            x: (mouseLocation.x - screenFrame.minX) + LightConfiguration.pointerVisualCenterOffsetX,
-            y: (size.height - (mouseLocation.y - screenFrame.minY)) + LightConfiguration.pointerVisualCenterOffsetY
+            x: (mouseLocation.x - model.screenFrame.minX) + LightConfiguration.pointerVisualCenterOffsetX,
+            y: (size.height - (mouseLocation.y - model.screenFrame.minY)) + LightConfiguration.pointerVisualCenterOffsetY
         )
     }
 
@@ -1114,16 +1113,23 @@ struct LightView: View {
 #Preview {
     LightView(
         model: LightViewModel(
+            persistentID: "preview-display",
+            displayID: 1,
+            displayName: "Preview Display",
+            screenFrame: CGRect(x: 0, y: 0, width: 600, height: 400),
+            visibleFrame: CGRect(x: 0, y: 0, width: 600, height: 400),
+            isOn: true,
             brightness: 0.35,
             colorTemperature: LightConfiguration.defaultColorTemperature,
             isHDREnabled: false,
+            hasHDRDisplay: true,
+            preferredHDREnabled: true,
             maxHDRFactor: 2.0,
             borderWidth: 80.0,
             effectMode: .normal,
             primaryDirectionalLightAngle: LightConfiguration.defaultPrimaryDirectionalLightAngle,
             secondaryDirectionalLightAngle: LightConfiguration.defaultSecondaryDirectionalLightAngle,
             mouseLocation: CGPoint(x: 260, y: 260)
-        ),
-        screenFrame: CGRect(x: 0, y: 0, width: 600, height: 400)
+        )
     )
 }

@@ -1,83 +1,80 @@
 import SwiftUI
 
 struct ContentView: View {
+    @ObservedObject var display: LightViewModel
     @ObservedObject var lightController: LightController
     let showAbout: () -> Void
     let quitApp: () -> Void
 
     private var brightnessBinding: Binding<Double> {
         Binding(
-            get: { lightController.brightness },
-            set: { lightController.setBrightness($0) }
+            get: { display.brightness },
+            set: { lightController.setBrightness($0, for: display) }
         )
     }
 
     private var colorTemperatureBinding: Binding<Double> {
         Binding(
-            get: { lightController.colorTemperature },
-            set: { lightController.setColorTemperature($0) }
+            get: { display.colorTemperature },
+            set: { lightController.setColorTemperature($0, for: display) }
         )
     }
 
     private var borderWidthBinding: Binding<Double> {
         Binding(
-            get: { Double(lightController.borderWidth) },
-            set: { lightController.setBorderWidth(CGFloat($0)) }
+            get: { Double(display.borderWidth) },
+            set: { lightController.setBorderWidth(CGFloat($0), for: display) }
         )
     }
 
     private var primaryDirectionalLightAngleBinding: Binding<Double> {
         Binding(
-            get: { lightController.primaryDirectionalLightAngle },
-            set: { lightController.setPrimaryDirectionalLightAngle($0) }
+            get: { display.primaryDirectionalLightAngle },
+            set: { lightController.setPrimaryDirectionalLightAngle($0, for: display) }
         )
     }
 
     private var secondaryDirectionalLightAngleBinding: Binding<Double> {
         Binding(
-            get: { lightController.secondaryDirectionalLightAngle },
-            set: { lightController.setSecondaryDirectionalLightAngle($0) }
+            get: { display.secondaryDirectionalLightAngle },
+            set: { lightController.setSecondaryDirectionalLightAngle($0, for: display) }
         )
     }
 
     private var hdrLabel: String {
-        if !lightController.supportsHDR() {
+        if !display.hasHDRDisplay {
             return "HDR_MODE_UNAVAILABLE".localized
         }
 
-        return (lightController.isHDREnabled ? "HDR_MODE_ON" : "HDR_MODE_OFF").localized
+        return (display.isHDREnabled ? "HDR_MODE_ON" : "HDR_MODE_OFF").localized
     }
 
     private var hdrButtonLabel: String {
-        guard lightController.supportsHDR() else {
+        guard display.hasHDRDisplay else {
             return "HDR_BUTTON_UNAVAILABLE".localized
         }
 
-        return lightController.isHDREnabled ? "关闭" : "开启"
+        return display.isHDREnabled ? "关闭" : "开启"
     }
 
     private var effectModeValueLabel: String {
-        lightController.effectMode.localizedTitle
-    }
-
-    private var showsDirectionalLightCard: Bool {
-        lightController.effectMode.supportsDirectionalLights
+        display.effectMode.localizedTitle
     }
 
     private var lightStatusLabel: String {
-        lightController.isOn ? "TOGGLE_LIGHT_OFF".localized : "TOGGLE_LIGHT_ON".localized
+        display.isOn ? "TOGGLE_LIGHT_OFF".localized : "TOGGLE_LIGHT_ON".localized
     }
 
     private var brightnessValueLabel: String {
-        "\(Int((lightController.brightness * 100).rounded()))%"
+        "\(Int((display.brightness * 100).rounded()))%"
     }
 
     private var sizeValueLabel: String {
-        "\(Int(lightController.borderWidth.rounded())) px"
+        "\(Int(display.borderWidth.rounded())) px"
     }
 
     private var colorTemperatureValueLabel: String {
-        switch lightController.colorTemperature {
+        switch display.colorTemperature {
         case ..<0.35:
             return "LIGHT_TEMPERATURE_WARM".localized
         case 0.65...:
@@ -85,6 +82,10 @@ struct ContentView: View {
         default:
             return "LIGHT_TEMPERATURE_NEUTRAL".localized
         }
+    }
+
+    private var showsDirectionalLightCard: Bool {
+        display.effectMode.supportsDirectionalLights
     }
 
     var body: some View {
@@ -105,26 +106,26 @@ struct ContentView: View {
                 HStack(alignment: .center, spacing: 12) {
                     ZStack {
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(lightController.isOn ? Color.yellow.opacity(0.20) : Color.black.opacity(0.06))
+                            .fill(display.isOn ? Color.yellow.opacity(0.20) : Color.black.opacity(0.06))
                             .frame(width: 42, height: 42)
 
-                        Image(systemName: lightController.isOn ? "lightbulb.fill" : "lightbulb")
+                        Image(systemName: display.isOn ? "lightbulb.fill" : "lightbulb")
                             .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(lightController.isOn ? Color(red: 0.95, green: 0.73, blue: 0.14) : .secondary)
+                            .foregroundStyle(display.isOn ? Color(red: 0.95, green: 0.73, blue: 0.14) : .secondary)
                     }
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text("MacBrightFace")
                             .font(.system(size: 18, weight: .semibold))
-                        Text(lightStatusLabel)
+                        Text(display.displayName)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
 
                     Spacer()
 
-                    Button(lightController.isOn ? "关闭" : "开启") {
-                        lightController.toggleLight()
+                    Button(display.isOn ? "关闭" : "开启") {
+                        lightController.toggleLight(for: display)
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
@@ -149,7 +150,7 @@ struct ContentView: View {
                     )
                 }
 
-                if lightController.effectMode.supportsColorTemperatureControl {
+                if display.effectMode.supportsColorTemperatureControl {
                     sliderCard(
                         title: "COLOR_TEMPERATURE".localized,
                         value: colorTemperatureValueLabel,
@@ -234,11 +235,11 @@ struct ContentView: View {
                     Spacer()
 
                     Button(hdrButtonLabel) {
-                        lightController.toggleHDRMode()
+                        lightController.toggleHDRMode(for: display)
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
-                    .disabled(!lightController.supportsHDR())
+                    .disabled(!display.hasHDRDisplay)
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 12)
@@ -280,17 +281,17 @@ struct ContentView: View {
             Menu {
                 ForEach(LightEffectMode.allCases) { mode in
                     Button {
-                        lightController.setEffectMode(mode)
+                        lightController.setEffectMode(mode, for: display)
                     } label: {
                         Label(
                             mode.localizedTitle,
-                            systemImage: lightController.effectMode == mode ? "checkmark" : mode.symbolName
+                            systemImage: display.effectMode == mode ? "checkmark" : mode.symbolName
                         )
                     }
                 }
             } label: {
                 HStack(spacing: 8) {
-                    Image(systemName: lightController.effectMode.symbolName)
+                    Image(systemName: display.effectMode.symbolName)
                         .font(.system(size: 13, weight: .semibold))
                     Text(effectModeValueLabel)
                         .font(.system(size: 12, weight: .semibold, design: .rounded))
@@ -545,6 +546,25 @@ private struct AngleDial: View {
 
 #Preview {
     ContentView(
+        display: LightViewModel(
+            persistentID: "preview-display",
+            displayID: 1,
+            displayName: "Preview Display",
+            screenFrame: CGRect(x: 0, y: 0, width: 1440, height: 900),
+            visibleFrame: CGRect(x: 0, y: 0, width: 1440, height: 860),
+            isOn: true,
+            brightness: LightConfiguration.defaultBrightness,
+            colorTemperature: LightConfiguration.defaultColorTemperature,
+            isHDREnabled: true,
+            hasHDRDisplay: true,
+            preferredHDREnabled: true,
+            maxHDRFactor: 2.0,
+            borderWidth: LightConfiguration.defaultBorderWidth,
+            effectMode: .professional,
+            primaryDirectionalLightAngle: LightConfiguration.defaultPrimaryDirectionalLightAngle,
+            secondaryDirectionalLightAngle: LightConfiguration.defaultSecondaryDirectionalLightAngle,
+            mouseLocation: CGPoint(x: 720, y: 450)
+        ),
         lightController: LightController(),
         showAbout: {},
         quitApp: {}
