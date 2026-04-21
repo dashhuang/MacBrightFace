@@ -15,6 +15,7 @@ final class LightController: ObservableObject {
     @Published private(set) var isHDREnabled = false
     @Published private(set) var hasHDRDisplay = false
     @Published private(set) var borderWidth = LightConfiguration.defaultBorderWidth
+    @Published private(set) var effectMode: LightEffectMode = .normal
 
     private struct DisplayWindow {
         let displayID: CGDirectDisplayID
@@ -33,6 +34,7 @@ final class LightController: ObservableObject {
         isHDREnabled: false,
         maxHDRFactor: 1.0,
         borderWidth: LightConfiguration.defaultBorderWidth,
+        effectMode: .normal,
         mouseLocation: NSEvent.mouseLocation
     )
 
@@ -93,6 +95,13 @@ final class LightController: ObservableObject {
         guard abs(borderWidth - clampedValue) > 1.0 else { return }
 
         borderWidth = clampedValue
+        syncLightViewModel()
+    }
+
+    func setEffectMode(_ mode: LightEffectMode) {
+        guard effectMode != mode else { return }
+
+        effectMode = mode
         syncLightViewModel()
     }
 
@@ -303,6 +312,7 @@ final class LightController: ObservableObject {
             isHDREnabled: isHDREnabled,
             maxHDRFactor: maxHDRBrightness,
             borderWidth: borderWidth,
+            effectMode: effectMode,
             mouseLocation: NSEvent.mouseLocation
         )
     }

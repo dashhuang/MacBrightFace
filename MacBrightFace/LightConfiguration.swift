@@ -1,5 +1,23 @@
 import CoreGraphics
 
+enum LightEffectMode: String, CaseIterable, Identifiable {
+    case normal
+    case police
+    case fireTruck
+    case disco
+
+    var id: String { rawValue }
+
+    var supportsColorTemperatureControl: Bool {
+        switch self {
+        case .normal:
+            return true
+        case .police, .fireTruck, .disco:
+            return false
+        }
+    }
+}
+
 enum LightConfiguration {
     static let brightnessRange: ClosedRange<Double> = 0.0...1.0
     static let defaultBrightness = 0.35

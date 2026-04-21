@@ -11,6 +11,7 @@
 "BRIGHTNESS_SLIDER" = "Adjust Brightness";
 "COLOR_TEMPERATURE" = "Color Temperature";
 "BORDER_WIDTH_MENU" = "Light Size";
+"LIGHT_EFFECT_MENU" = "Light Type";
 "HDR_MODE_ON" = "HDR Mode: On";
 "HDR_MODE_OFF" = "HDR Mode: Off";
 "HDR_MODE_UNAVAILABLE" = "This display doesn't support HDR";
@@ -25,3 +26,7 @@
 "LIGHT_TEMPERATURE_WARM" = "Warm";
 "LIGHT_TEMPERATURE_NEUTRAL" = "Neutral";
 "LIGHT_TEMPERATURE_COOL" = "Cool";
+"LIGHT_EFFECT_NORMAL" = "Fill Light";
+"LIGHT_EFFECT_POLICE" = "Police Car";
+"LIGHT_EFFECT_FIRE_TRUCK" = "Fire Truck";
+"LIGHT_EFFECT_DISCO" = "Disco";

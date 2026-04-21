@@ -9,6 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let statusPopover = NSPopover()
     private var popoverHostingController: NSHostingController<ContentView>?
     private var cancellables: Set<AnyCancellable> = []
+    private var lastPopoverSize: NSSize = .zero
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         configureApplicationMenu()
@@ -77,13 +78,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func setupStatusPopover() {
         statusPopover.behavior = .transient
         statusPopover.animates = false
-        let hostingController = NSHostingController(
-            rootView: ContentView(
-                lightController: lightController,
-                showAbout: { [weak self] in self?.showAboutPanel() },
-                quitApp: { [weak self] in self?.quitApplication() }
-            )
-        )
+        let hostingController = NSHostingController(rootView: makeContentView())
 
         popoverHostingController = hostingController
         statusPopover.contentViewController = hostingController
@@ -94,6 +89,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         lightController.$isOn
             .sink { [weak self] _ in
                 self?.refreshStatusBarButton()
+            }
+            .store(in: &cancellables)
+
+        lightController.$effectMode
+            .sink { [weak self] _ in
+                DispatchQueue.main.async { [weak self] in
+                    self?.updateStatusPopoverSize()
+                }
             }
             .store(in: &cancellables)
     }
@@ -108,19 +111,67 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func updateStatusPopoverSize() {
+        updateStatusPopoverSize(for: measuredContentSize())
+    }
+
+    private func updateStatusPopoverSize(for contentSize: CGSize) {
         guard let hostingController = popoverHostingController else { return }
-
-        _ = hostingController.view
-        hostingController.view.layoutSubtreeIfNeeded()
-
-        let fittingSize = hostingController.view.fittingSize
         let popoverSize = NSSize(
-            width: max(320, fittingSize.width),
-            height: max(380, fittingSize.height)
+            width: max(320, contentSize.width),
+            height: max(280, contentSize.height)
         )
 
+        guard
+            abs(lastPopoverSize.width - popoverSize.width) > 0.5
+                || abs(lastPopoverSize.height - popoverSize.height) > 0.5
+        else {
+            return
+        }
+
+        lastPopoverSize = popoverSize
         hostingController.preferredContentSize = popoverSize
         statusPopover.contentSize = popoverSize
+        resizeVisiblePopoverWindow(toContentSize: popoverSize)
+    }
+
+    private func resizeVisiblePopoverWindow(toContentSize contentSize: NSSize) {
+        guard
+            statusPopover.isShown,
+            let window = statusPopover.contentViewController?.view.window
+        else {
+            return
+        }
+
+        let targetFrameSize = window.frameRect(forContentRect: NSRect(origin: .zero, size: contentSize)).size
+        var targetFrame = window.frame
+
+        let deltaWidth = targetFrameSize.width - targetFrame.width
+        let deltaHeight = targetFrameSize.height - targetFrame.height
+
+        guard abs(deltaWidth) > 0.5 || abs(deltaHeight) > 0.5 else {
+            return
+        }
+
+        targetFrame.origin.x -= deltaWidth / 2
+        targetFrame.origin.y -= deltaHeight
+        targetFrame.size = targetFrameSize
+
+        window.setFrame(targetFrame, display: true, animate: false)
+    }
+
+    private func measuredContentSize() -> CGSize {
+        let measuringView = NSHostingView(rootView: makeContentView())
+        measuringView.frame = NSRect(x: 0, y: 0, width: 336, height: 10)
+        measuringView.layoutSubtreeIfNeeded()
+        return measuringView.fittingSize
+    }
+
+    private func makeContentView() -> ContentView {
+        ContentView(
+            lightController: lightController,
+            showAbout: { [weak self] in self?.showAboutPanel() },
+            quitApp: { [weak self] in self?.quitApplication() }
+        )
     }
 }
 

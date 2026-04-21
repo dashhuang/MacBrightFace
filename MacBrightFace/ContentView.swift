@@ -26,20 +26,6 @@ struct ContentView: View {
         )
     }
 
-    private var brightnessLabel: String {
-        let percentage = Int((lightController.brightness * 100).rounded())
-        return "BRIGHTNESS_LABEL".localizedFormat(String(percentage))
-    }
-
-    private var borderWidthLabel: String {
-        let width = Int(lightController.borderWidth.rounded())
-        return "BORDER_WIDTH_LABEL".localizedFormat(String(width))
-    }
-
-    private var colorTemperatureLabel: String {
-        "COLOR_TEMPERATURE_LABEL".localizedFormat(colorTemperatureValueLabel)
-    }
-
     private var hdrLabel: String {
         if !lightController.supportsHDR() {
             return "HDR_MODE_UNAVAILABLE".localized
@@ -54,6 +40,10 @@ struct ContentView: View {
         }
 
         return lightController.isHDREnabled ? "关闭" : "开启"
+    }
+
+    private var effectModeValueLabel: String {
+        lightController.effectMode.localizedTitle
     }
 
     private var lightStatusLabel: String {
@@ -126,7 +116,6 @@ struct ContentView: View {
                 sliderCard(
                     title: "BRIGHTNESS_SLIDER".localized,
                     value: brightnessValueLabel,
-                    footer: brightnessLabel,
                     icon: "sun.max.fill",
                     iconTint: Color.black.opacity(0.8)
                 ) {
@@ -142,49 +131,49 @@ struct ContentView: View {
                     )
                 }
 
-                sliderCard(
-                    title: "COLOR_TEMPERATURE".localized,
-                    value: colorTemperatureValueLabel,
-                    footer: colorTemperatureLabel,
-                    icon: "thermometer.sun.fill",
-                    iconTint: Color.black.opacity(0.8)
-                ) {
-                    PillSlider(
-                        value: colorTemperatureBinding,
-                        range: LightConfiguration.colorTemperatureRange,
-                        trackStyle: AnyShapeStyle(
-                            LinearGradient(
-                                colors: [
-                                    Color(red: 1.00, green: 0.70, blue: 0.28),
-                                    Color(red: 1.00, green: 0.89, blue: 0.75),
-                                    Color(red: 0.89, green: 0.93, blue: 1.00),
-                                    Color(red: 0.73, green: 0.83, blue: 0.98)
-                                ],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        ),
-                        progressStyle: nil,
-                        knobStyle: AnyShapeStyle(
-                            LinearGradient(
-                                colors: [
-                                    Color(red: 1.00, green: 0.96, blue: 0.90),
-                                    Color.white
-                                ],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        ),
-                        knobStroke: Color.white.opacity(0.95),
-                        knobShadow: Color.orange.opacity(0.14),
-                        showsProgress: false
-                    )
+                if lightController.effectMode.supportsColorTemperatureControl {
+                    sliderCard(
+                        title: "COLOR_TEMPERATURE".localized,
+                        value: colorTemperatureValueLabel,
+                        icon: "thermometer.sun.fill",
+                        iconTint: Color.black.opacity(0.8)
+                    ) {
+                        PillSlider(
+                            value: colorTemperatureBinding,
+                            range: LightConfiguration.colorTemperatureRange,
+                            trackStyle: AnyShapeStyle(
+                                LinearGradient(
+                                    colors: [
+                                        Color(red: 1.00, green: 0.70, blue: 0.28),
+                                        Color(red: 1.00, green: 0.89, blue: 0.75),
+                                        Color(red: 0.89, green: 0.93, blue: 1.00),
+                                        Color(red: 0.73, green: 0.83, blue: 0.98)
+                                    ],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            ),
+                            progressStyle: nil,
+                            knobStyle: AnyShapeStyle(
+                                LinearGradient(
+                                    colors: [
+                                        Color(red: 1.00, green: 0.96, blue: 0.90),
+                                        Color.white
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            ),
+                            knobStroke: Color.white.opacity(0.95),
+                            knobShadow: Color.orange.opacity(0.14),
+                            showsProgress: false
+                        )
+                    }
                 }
 
                 sliderCard(
                     title: "BORDER_WIDTH_MENU".localized,
                     value: sizeValueLabel,
-                    footer: borderWidthLabel,
                     icon: "arrow.up.left.and.arrow.down.right",
                     iconTint: Color.black.opacity(0.8)
                 ) {
@@ -208,6 +197,8 @@ struct ContentView: View {
                         showsProgress: true
                     )
                 }
+
+                effectMenuCard
 
                 HStack(alignment: .center, spacing: 12) {
                     VStack(alignment: .leading, spacing: 3) {
@@ -255,16 +246,71 @@ struct ContentView: View {
         .frame(width: 336)
     }
 
+    private var effectMenuCard: some View {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 0) {
+                Text("LIGHT_EFFECT_MENU".localized)
+                    .font(.system(size: 13, weight: .semibold))
+            }
+
+            Spacer()
+
+            Menu {
+                ForEach(LightEffectMode.allCases) { mode in
+                    Button {
+                        lightController.setEffectMode(mode)
+                    } label: {
+                        Label(
+                            mode.localizedTitle,
+                            systemImage: lightController.effectMode == mode ? "checkmark" : mode.symbolName
+                        )
+                    }
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: lightController.effectMode.symbolName)
+                        .font(.system(size: 13, weight: .semibold))
+                    Text(effectModeValueLabel)
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 10, weight: .bold))
+                }
+                .foregroundStyle(Color.black.opacity(0.78))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(Color.white.opacity(0.62))
+                        .overlay(
+                            Capsule(style: .continuous)
+                                .stroke(Color.white.opacity(0.70), lineWidth: 1)
+                        )
+                )
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color.white.opacity(0.42))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(Color.white.opacity(0.35), lineWidth: 1)
+                )
+        )
+    }
+
     @ViewBuilder
     private func sliderCard<Content: View>(
         title: String,
         value: String,
-        footer: String,
         icon: String,
         iconTint: Color,
         @ViewBuilder content: () -> Content
     ) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(title)
                     .font(.system(size: 13, weight: .semibold))
@@ -285,14 +331,9 @@ struct ContentView: View {
 
                 content()
             }
-
-            Text(footer)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        .padding(.vertical, 10)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(Color.white.opacity(0.42))
@@ -372,4 +413,32 @@ private struct PillSlider: View {
         showAbout: {},
         quitApp: {}
     )
+}
+
+private extension LightEffectMode {
+    var localizedTitle: String {
+        switch self {
+        case .normal:
+            return "LIGHT_EFFECT_NORMAL".localized
+        case .police:
+            return "LIGHT_EFFECT_POLICE".localized
+        case .fireTruck:
+            return "LIGHT_EFFECT_FIRE_TRUCK".localized
+        case .disco:
+            return "LIGHT_EFFECT_DISCO".localized
+        }
+    }
+
+    var symbolName: String {
+        switch self {
+        case .normal:
+            return "light.min"
+        case .police:
+            return "lightswitch.on"
+        case .fireTruck:
+            return "flame.fill"
+        case .disco:
+            return "sparkles"
+        }
+    }
 }
