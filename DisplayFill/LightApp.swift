@@ -133,8 +133,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             displayEffectModeCancellables[display.persistentID] = display.$effectMode
                 .dropFirst()
                 .sink { [weak self] _ in
-                    guard let self, self.areControlPanelsVisible else { return }
-                    self.handleEffectModeChange(for: display.persistentID)
+                    DispatchQueue.main.async { [weak self] in
+                        guard let self, self.areControlPanelsVisible else { return }
+                        self.handleEffectModeChange(for: display.persistentID)
+                    }
                 }
         }
     }

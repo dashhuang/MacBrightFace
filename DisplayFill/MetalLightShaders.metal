@@ -168,6 +168,21 @@ float renderIntensity(constant Uniforms& uniforms) {
     return 1.0 + (targetIntensity(uniforms) * 0.10);
 }
 
+float pointerCutoutMask(float2 point, constant Uniforms& uniforms) {
+    float d = distance(point, uniforms.mousePosition);
+    float brightnessSoftness = curvedBrightness(uniforms);
+    float hdrSoftness = uniforms.isHDREnabled == 1
+        ? saturate((targetIntensity(uniforms) - 1.0) / max(1.0, effectiveHDRFactor(uniforms) - 1.0))
+        : 0.0;
+    float softness = saturate((brightnessSoftness * 0.72) + (hdrSoftness * 0.38));
+    float innerRadius = uniforms.pointerRadius * mix(0.92, 0.72, softness);
+    float feather = uniforms.pointerFeather * mix(0.85, 1.85, softness);
+    float outerRadius = uniforms.pointerRadius + feather;
+    float mask = smoothstep(innerRadius, outerRadius, d);
+    float perceptualMask = pow(mask, mix(1.0, 0.72, softness * 0.65));
+    return saturate(perceptualMask);
+}
+
 float temperatureStrength(constant Uniforms& uniforms) {
     return abs(saturate(uniforms.colorTemperature) - 0.5) * 2.0;
 }
@@ -471,10 +486,7 @@ fragment float4 displayFillFragment(VertexOut in [[stage_in]], constant Uniforms
     }
 
     if (uniforms.hasMouse == 1) {
-        float d = distance(point, uniforms.mousePosition);
-        float innerRadius = uniforms.pointerRadius * 0.94;
-        float outerRadius = uniforms.pointerRadius + (uniforms.pointerFeather * 0.72);
-        float hole = smoothstep(innerRadius, outerRadius, d);
+        float hole = pointerCutoutMask(point, uniforms);
         color *= hole;
         alpha *= hole;
     }

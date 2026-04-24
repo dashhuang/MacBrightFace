@@ -198,6 +198,22 @@ struct LightView: View {
         return min(1.0, max(0.0, (8.0 - headroom) / 4.0))
     }
 
+    private var pointerCutoutSoftness: Double {
+        let brightnessSoftness = curvedBrightness
+        let hdrSoftness: Double
+
+        if model.isHDREnabled {
+            hdrSoftness = min(
+                1.0,
+                max(0.0, (targetIntensity - 1.0) / max(1.0, effectiveHDRFactor - 1.0))
+            )
+        } else {
+            hdrSoftness = 0.0
+        }
+
+        return min(1.0, max(0.0, (brightnessSoftness * 0.72) + (hdrSoftness * 0.38)))
+    }
+
     private var usesSwiftUIPointerCutout: Bool {
         !model.isHDREnabled || model.maxHDRFactor >= 8.0
     }
@@ -1096,8 +1112,9 @@ struct LightView: View {
             )
             let innerHighlightThickness = max(6.0, ringThickness * 0.72)
             let cutoutCenter = usesSwiftUIPointerCutout ? localMouseLocation(in: geometry.size) : nil
-            let cutoutDiameter = LightConfiguration.pointerCutoutRadius * 2
-            let cutoutBlur = LightConfiguration.pointerCutoutFeather
+            let cutoutSoftness = pointerCutoutSoftness
+            let cutoutDiameter = LightConfiguration.pointerCutoutRadius * 2 * (1.0 - (cutoutSoftness * 0.18))
+            let cutoutBlur = LightConfiguration.pointerCutoutFeather * (1.0 + (cutoutSoftness * 1.15))
 
             ZStack {
                 if model.effectMode == .professional {
