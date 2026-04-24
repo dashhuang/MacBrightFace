@@ -60,6 +60,7 @@ final class LightViewModel: ObservableObject {
     }
 
     func updateMouseLocation(_ mouseLocation: CGPoint?) {
+        guard self.mouseLocation != mouseLocation else { return }
         self.mouseLocation = mouseLocation
     }
 }
@@ -175,6 +176,17 @@ struct LightView: View {
         model.isHDREnabled ? max(1.0, targetIntensity) : 1.0
     }
 
+    private var hdrLowHeadroomCompensation: Double {
+        guard model.isHDREnabled else { return 0.0 }
+
+        let headroom = max(1.0, model.maxHDRFactor)
+        return min(1.0, max(0.0, (8.0 - headroom) / 4.0))
+    }
+
+    private var usesPointerCutout: Bool {
+        !model.isHDREnabled || model.maxHDRFactor >= 8.0
+    }
+
     private var baseLightColorComponents: (red: Double, green: Double, blue: Double) {
         func interpolate(_ start: Double, _ end: Double, progress: Double) -> Double {
             start + ((end - start) * progress)
@@ -213,12 +225,18 @@ struct LightView: View {
     private var targetIntensity: Double {
         let maxIntensity = model.isHDREnabled ? max(1.0, model.maxHDRFactor) : LightConfiguration.standardMaxBrightness
         let baseCurve = 0.18 + (curvedBrightness * 0.82)
-        return maxIntensity * baseCurve
+        let headroomCompensation = model.isHDREnabled ? 1.0 + (hdrLowHeadroomCompensation * 0.24) : 1.0
+        return maxIntensity * baseCurve * headroomCompensation
     }
 
     private var baseOpacity: Double {
         if model.isHDREnabled {
-            return min(1.0, 0.20 + (curvedBrightness * 0.24) + (temperatureStrength * 0.06))
+            return min(
+                1.0,
+                0.20
+                    + (curvedBrightness * (0.24 + (hdrLowHeadroomCompensation * 0.36)))
+                    + (temperatureStrength * 0.06)
+            )
         }
 
         return min(1.0, 0.24 + (curvedBrightness * 0.76))
@@ -226,7 +244,12 @@ struct LightView: View {
 
     private var highlightOpacity: Double {
         if model.isHDREnabled {
-            return min(1.0, 0.10 + (curvedBrightness * 0.14) + (temperatureStrength * 0.04))
+            return min(
+                1.0,
+                0.10
+                    + (curvedBrightness * (0.14 + (hdrLowHeadroomCompensation * 0.12)))
+                    + (temperatureStrength * 0.04)
+            )
         }
 
         return min(1.0, 0.08 + (curvedBrightness * 0.28) + (targetIntensity * 0.10))
@@ -234,7 +257,12 @@ struct LightView: View {
 
     private var bloomOpacity: Double {
         if model.isHDREnabled {
-            return min(1.0, 0.10 + (curvedBrightness * 0.18) + (temperatureStrength * 0.05))
+            return min(
+                1.0,
+                0.10
+                    + (curvedBrightness * (0.18 + (hdrLowHeadroomCompensation * 0.14)))
+                    + (temperatureStrength * 0.05)
+            )
         }
 
         return min(1.0, 0.06 + (curvedBrightness * 0.22))
@@ -654,7 +682,14 @@ struct LightView: View {
         brightnessScale: Double = 1.0
     ) -> some View {
         let clampedBrightnessScale = min(1.0, max(0.0, brightnessScale))
-        let hdrBloomOpacity = min(1.0, (0.10 + (curvedBrightness * 0.16) + (temperatureStrength * 0.06)) * clampedBrightnessScale)
+        let hdrBloomOpacity = min(
+            1.0,
+            (
+                0.10
+                    + (curvedBrightness * (0.16 + (hdrLowHeadroomCompensation * 0.12)))
+                    + (temperatureStrength * 0.06)
+            ) * clampedBrightnessScale
+        )
         let baseLayerOpacity = baseOpacity * clampedBrightnessScale
         let highlightLayerOpacity = highlightOpacity * clampedBrightnessScale
         let bloomLayerOpacity = bloomOpacity * clampedBrightnessScale
@@ -908,7 +943,7 @@ struct LightView: View {
     ) -> some View {
         let primaryEnergy = 1.0
         let secondaryEnergy = 0.6
-        let ringBrightnessScale = 0.5
+        let ringBrightnessScale = 0.5 + (hdrLowHeadroomCompensation * 0.16)
 
         ZStack {
             directionalStudioLight(
@@ -1041,7 +1076,7 @@ struct LightView: View {
                 min(geometry.size.width, geometry.size.height) * 0.18 + (ringThickness * 0.7)
             )
             let innerHighlightThickness = max(6.0, ringThickness * 0.72)
-            let cutoutCenter = localMouseLocation(in: geometry.size)
+            let cutoutCenter = usesPointerCutout ? localMouseLocation(in: geometry.size) : nil
             let cutoutDiameter = LightConfiguration.pointerCutoutRadius * 2
             let cutoutBlur = LightConfiguration.pointerCutoutFeather
 

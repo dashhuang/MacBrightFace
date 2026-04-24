@@ -317,9 +317,12 @@ final class LightController: ObservableObject {
         let descriptors = screenDescriptors()
         let descriptorIDs = Set(descriptors.map(\.persistentID))
 
-        for (persistentID, context) in displayContexts where !descriptorIDs.contains(persistentID) {
-            closeOverlayWindow(for: context)
-            displayContexts.removeValue(forKey: persistentID)
+        let removedDisplayIDs = displayContexts.keys.filter { !descriptorIDs.contains($0) }
+        for persistentID in removedDisplayIDs {
+            if let context = displayContexts[persistentID] {
+                closeOverlayWindow(for: context)
+                displayContexts.removeValue(forKey: persistentID)
+            }
         }
 
         for descriptor in descriptors {
@@ -414,17 +417,27 @@ final class LightController: ObservableObject {
     }
 
     private func configureOverlayWindow(for context: DisplayContext, descriptor: ScreenDescriptor) {
-        closeOverlayWindow(for: context)
+        if context.overlayWindow == nil || context.hostingView == nil {
+            closeOverlayWindow(for: context)
 
-        let lightView = LightView(model: context.model)
-        let hostingView = NSHostingView(rootView: lightView)
-        let window = NSWindow(
-            contentRect: descriptor.frame,
-            styleMask: [.borderless],
-            backing: .buffered,
-            defer: false,
-            screen: descriptor.screen
-        )
+            let lightView = LightView(model: context.model)
+            let hostingView = NSHostingView(rootView: lightView)
+            let window = NSWindow(
+                contentRect: descriptor.frame,
+                styleMask: [.borderless],
+                backing: .buffered,
+                defer: false,
+                screen: descriptor.screen
+            )
+
+            window.contentView = hostingView
+            hostingView.wantsLayer = true
+
+            context.hostingView = hostingView
+            context.overlayWindow = window
+        }
+
+        guard let window = context.overlayWindow, let hostingView = context.hostingView else { return }
 
         window.isOpaque = false
         window.backgroundColor = .clear
@@ -433,16 +446,10 @@ final class LightController: ObservableObject {
         window.isMovableByWindowBackground = false
         window.level = .mainMenu
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
-        window.contentView = hostingView
-
-        hostingView.wantsLayer = true
         applyEDRState(to: hostingView, isHDREnabled: context.model.isHDREnabled)
         window.setFrame(descriptor.frame, display: false)
         window.orderOut(nil)
         logger.info("Configured overlay display=\(descriptor.displayName, privacy: .public) targetFrame=\(NSStringFromRect(descriptor.frame), privacy: .public)")
-
-        context.hostingView = hostingView
-        context.overlayWindow = window
     }
 
     private func closeOverlayWindow(for context: DisplayContext) {
@@ -498,7 +505,8 @@ final class LightController: ObservableObject {
     private func updateMouseLocation() {
         let mouseLocation = NSEvent.mouseLocation
         for display in displays {
-            display.updateMouseLocation(mouseLocation)
+            let shouldTrackMouse = !display.isHDREnabled || display.maxHDRFactor >= 8.0
+            display.updateMouseLocation(shouldTrackMouse ? mouseLocation : nil)
         }
     }
 

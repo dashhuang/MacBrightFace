@@ -19,9 +19,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var cancellables: Set<AnyCancellable> = []
     private var areControlPanelsVisible = false
     private var isRefreshingVisibleControlPanels = false
+    private var isClosingControlPanelsProgrammatically = false
+    private var lastAutomaticControlPanelCloseEventNumber: Int?
     private var currentPrimaryDisplayID: String?
     private var currentAnchorOffsetFromRight: CGFloat?
     private var pendingSecondaryResizeTasks: [String: DispatchWorkItem] = [:]
+    private var visibleControlPanelRefreshGeneration = 0
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         configureApplicationMenu()
@@ -43,6 +46,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     @objc private func toggleControlPanels(_ sender: Any?) {
+        if toggleWasAlreadyHandledByAutomaticPopoverClose() {
+            return
+        }
+
+        lastAutomaticControlPanelCloseEventNumber = nil
+
         if areControlPanelsVisible || statusPopover.isShown {
             hideControlPanels()
         } else {
@@ -88,7 +97,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     private func setupStatusPopover() {
-        statusPopover.behavior = .transient
+        statusPopover.behavior = .semitransient
         statusPopover.animates = false
         statusPopover.delegate = self
     }
@@ -104,7 +113,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             .sink { [weak self] displays in
                 self?.refreshEffectModeSubscriptions(displays)
                 guard let self, self.areControlPanelsVisible else { return }
-                self.refreshVisibleControlPanels()
+                self.scheduleVisibleControlPanelRefresh()
             }
             .store(in: &cancellables)
     }
@@ -182,9 +191,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             closeControlPanels()
             isRefreshingVisibleControlPanels = true
             statusPopover.performClose(nil)
-            DispatchQueue.main.async { [weak self] in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.03) { [weak self] in
                 guard let self else { return }
                 self.isRefreshingVisibleControlPanels = false
+                guard self.areControlPanelsVisible else { return }
                 self.presentControlPanels(
                     primaryDisplayID: resolvedPrimaryDisplay.persistentID,
                     anchorOffsetFromRight: resolvedAnchorOffset,
@@ -221,8 +231,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     private func hideControlPanels() {
+        cancelVisibleControlPanelRefresh()
         closeControlPanels()
-        statusPopover.performClose(nil)
+        closePrimaryPopoverProgrammatically()
         areControlPanelsVisible = false
         currentPrimaryDisplayID = nil
         currentAnchorOffsetFromRight = nil
@@ -241,6 +252,49 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
 
         controlPanels.removeAll()
+    }
+
+    private func scheduleVisibleControlPanelRefresh() {
+        visibleControlPanelRefreshGeneration += 1
+        let generation = visibleControlPanelRefreshGeneration
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [weak self] in
+            guard let self else { return }
+            guard generation == self.visibleControlPanelRefreshGeneration else { return }
+            guard self.areControlPanelsVisible else { return }
+            self.refreshVisibleControlPanels()
+        }
+    }
+
+    private func cancelVisibleControlPanelRefresh() {
+        visibleControlPanelRefreshGeneration += 1
+    }
+
+    private func closePrimaryPopoverProgrammatically() {
+        isClosingControlPanelsProgrammatically = true
+        statusPopover.performClose(nil)
+        DispatchQueue.main.async { [weak self] in
+            self?.isClosingControlPanelsProgrammatically = false
+        }
+    }
+
+    private func toggleWasAlreadyHandledByAutomaticPopoverClose() -> Bool {
+        guard let event = NSApp.currentEvent else { return false }
+        guard lastAutomaticControlPanelCloseEventNumber == event.eventNumber else { return false }
+        guard !areControlPanelsVisible, !statusPopover.isShown else { return false }
+
+        lastAutomaticControlPanelCloseEventNumber = nil
+        logger.info("Ignored status item toggle because the same click already dismissed the control panels")
+        return true
+    }
+
+    private func clickedStatusBarButton(at screenPoint: CGPoint) -> Bool {
+        guard let button = statusBarItem.button, let window = button.window else {
+            return false
+        }
+
+        let buttonFrame = window.convertToScreen(button.bounds).insetBy(dx: -4, dy: -4)
+        return buttonFrame.contains(screenPoint)
     }
 
     private func makeControlPanel(for display: LightViewModel) -> NSPanel {
@@ -438,10 +492,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     func popoverDidClose(_ notification: Notification) {
-        if isRefreshingVisibleControlPanels {
+        if isRefreshingVisibleControlPanels || isClosingControlPanelsProgrammatically {
             return
         }
 
+        lastAutomaticControlPanelCloseEventNumber = NSApp.currentEvent?.eventNumber
+        cancelVisibleControlPanelRefresh()
         closeControlPanels()
         areControlPanelsVisible = false
         currentPrimaryDisplayID = nil
@@ -466,6 +522,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             screenPoint = window.convertToScreen(NSRect(origin: event.locationInWindow, size: .zero)).origin
         } else {
             screenPoint = NSEvent.mouseLocation
+        }
+
+        if clickedStatusBarButton(at: screenPoint) {
+            logger.info("Prevented primary popover close because click landed on the status item at \(NSStringFromPoint(screenPoint), privacy: .public)")
+            return false
         }
 
         let clickedInsideControlPanel = controlPanels.values.contains { panel in
