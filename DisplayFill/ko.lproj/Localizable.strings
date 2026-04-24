@@ -1,0 +1,39 @@
+/*
+  Localizable.strings
+  DisplayFill
+
+  Korean localization
+*/
+
+// App menu items
+"TOGGLE_LIGHT_ON" = "Mac 보조 조명 켜기";
+"TOGGLE_LIGHT_OFF" = "Mac 보조 조명 끄기";
+"BRIGHTNESS_SLIDER" = "밝기 조절";
+"COLOR_TEMPERATURE" = "색온도";
+"BORDER_WIDTH_MENU" = "조명 크기";
+"LIGHT_EFFECT_MENU" = "조명 유형";
+"HDR_MODE_ON" = "HDR 모드: 켬";
+"HDR_MODE_OFF" = "HDR 모드: 끔";
+"HDR_MODE_UNAVAILABLE" = "이 디스플레이는 HDR을 지원하지 않습니다";
+"HDR_BUTTON_UNAVAILABLE" = "지원 안 됨";
+"COMMON_ENABLE" = "켜기";
+"COMMON_DISABLE" = "끄기";
+"ABOUT_LIGHT" = "DisplayFill 정보";
+"QUIT" = "종료";
+
+// UI labels
+"BRIGHTNESS_LABEL" = "밝기: %@%%";
+"COLOR_TEMPERATURE_LABEL" = "색온도: %@";
+"BORDER_WIDTH_LABEL" = "조명 크기: %@ px";
+"LIGHT_TEMPERATURE_WARM" = "따뜻함";
+"LIGHT_TEMPERATURE_NEUTRAL" = "중립";
+"LIGHT_TEMPERATURE_COOL" = "차가움";
+"LIGHT_EFFECT_NORMAL" = "보조 조명";
+"LIGHT_EFFECT_PROFESSIONAL" = "프로 보조 조명";
+"LIGHT_EFFECT_POLICE" = "경찰차";
+"LIGHT_EFFECT_FIRE_TRUCK" = "소방차";
+"LIGHT_EFFECT_CAMPFIRE" = "캠프파이어";
+"LIGHT_EFFECT_DISCO" = "디스코";
+"PRO_DIRECTIONAL_LIGHT_ANGLES" = "조명 각도";
+"PRO_DIRECTIONAL_LIGHT_PRIMARY" = "키";
+"PRO_DIRECTIONAL_LIGHT_SECONDARY" = "필";

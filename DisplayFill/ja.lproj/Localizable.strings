@@ -1,0 +1,39 @@
+/*
+  Localizable.strings
+  DisplayFill
+
+  Japanese localization
+*/
+
+// App menu items
+"TOGGLE_LIGHT_ON" = "Macフィルライトをオン";
+"TOGGLE_LIGHT_OFF" = "Macフィルライトをオフ";
+"BRIGHTNESS_SLIDER" = "明るさを調整";
+"COLOR_TEMPERATURE" = "色温度";
+"BORDER_WIDTH_MENU" = "ライトサイズ";
+"LIGHT_EFFECT_MENU" = "ライトタイプ";
+"HDR_MODE_ON" = "HDRモード: オン";
+"HDR_MODE_OFF" = "HDRモード: オフ";
+"HDR_MODE_UNAVAILABLE" = "このディスプレイはHDRに対応していません";
+"HDR_BUTTON_UNAVAILABLE" = "非対応";
+"COMMON_ENABLE" = "オン";
+"COMMON_DISABLE" = "オフ";
+"ABOUT_LIGHT" = "DisplayFillについて";
+"QUIT" = "終了";
+
+// UI labels
+"BRIGHTNESS_LABEL" = "明るさ: %@%%";
+"COLOR_TEMPERATURE_LABEL" = "色温度: %@";
+"BORDER_WIDTH_LABEL" = "ライトサイズ: %@ px";
+"LIGHT_TEMPERATURE_WARM" = "暖色";
+"LIGHT_TEMPERATURE_NEUTRAL" = "ニュートラル";
+"LIGHT_TEMPERATURE_COOL" = "寒色";
+"LIGHT_EFFECT_NORMAL" = "フィルライト";
+"LIGHT_EFFECT_PROFESSIONAL" = "プロフィルライト";
+"LIGHT_EFFECT_POLICE" = "パトカー";
+"LIGHT_EFFECT_FIRE_TRUCK" = "消防車";
+"LIGHT_EFFECT_CAMPFIRE" = "焚き火";
+"LIGHT_EFFECT_DISCO" = "ディスコ";
+"PRO_DIRECTIONAL_LIGHT_ANGLES" = "ライト角度";
+"PRO_DIRECTIONAL_LIGHT_PRIMARY" = "キー";
+"PRO_DIRECTIONAL_LIGHT_SECONDARY" = "フィル";

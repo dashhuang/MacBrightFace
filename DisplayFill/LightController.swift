@@ -5,8 +5,21 @@ import SwiftUI
 
 @MainActor
 final class LightController: ObservableObject {
-    private let logger = Logger(subsystem: "cn.huang.dash.MacBrightFace", category: "Overlays")
+    private let logger = Logger(subsystem: "cn.huang.dash.DisplayFill", category: "Overlays")
     private enum DefaultsKey {
+        static let displaySettings = "cn.huang.dash.DisplayFill.displaySettings"
+        static let legacyIsOn = "cn.huang.dash.DisplayFill.isOn"
+        static let legacyBrightness = "cn.huang.dash.DisplayFill.brightness"
+        static let legacyColorTemperature = "cn.huang.dash.DisplayFill.colorTemperature"
+        static let legacyHDRPreference = "cn.huang.dash.DisplayFill.hdrPreference"
+        static let legacyBorderWidth = "cn.huang.dash.DisplayFill.borderWidth"
+        static let legacyEffectMode = "cn.huang.dash.DisplayFill.effectMode"
+        static let legacyPrimaryDirectionalLightAngle = "cn.huang.dash.DisplayFill.primaryDirectionalLightAngle"
+        static let legacySecondaryDirectionalLightAngle = "cn.huang.dash.DisplayFill.secondaryDirectionalLightAngle"
+    }
+
+    private enum OldDefaultsKey {
+        static let suiteName = "cn.huang.dash.MacBrightFace"
         static let displaySettings = "cn.huang.dash.MacBrightFace.displaySettings"
         static let legacyIsOn = "cn.huang.dash.MacBrightFace.isOn"
         static let legacyBrightness = "cn.huang.dash.MacBrightFace.brightness"
@@ -163,10 +176,12 @@ final class LightController: ObservableObject {
     private var globalMouseMonitor: Any?
     private var localMouseMonitor: Any?
     private let userDefaults = UserDefaults.standard
+    private let oldUserDefaults = UserDefaults(suiteName: OldDefaultsKey.suiteName)
     private var persistedDisplaySettings: [String: PersistedDisplaySettings] = [:]
     private var hasCompletedLaunch = false
 
     init() {
+        migrateDefaultsFromPreviousBundleIdentifierIfNeeded()
         persistedDisplaySettings = loadPersistedDisplaySettings()
         lastScreenLayout = captureScreenLayout()
         rebuildDisplayContexts()
@@ -511,7 +526,7 @@ final class LightController: ObservableObject {
     private func legacyDisplaySettings() -> PersistedDisplaySettings {
         let effectMode: LightEffectMode
         if
-            let rawEffectMode = userDefaults.string(forKey: DefaultsKey.legacyEffectMode),
+            let rawEffectMode = legacyString(forKey: DefaultsKey.legacyEffectMode, oldKey: OldDefaultsKey.legacyEffectMode),
             let restoredEffectMode = LightEffectMode(rawValue: rawEffectMode)
         {
             effectMode = restoredEffectMode
@@ -520,32 +535,53 @@ final class LightController: ObservableObject {
         }
 
         return PersistedDisplaySettings(
-            isOn: userDefaults.object(forKey: DefaultsKey.legacyIsOn) as? Bool ?? true,
+            isOn: legacyObject(forKey: DefaultsKey.legacyIsOn, oldKey: OldDefaultsKey.legacyIsOn) as? Bool ?? true,
             brightness: clamped(
-                userDefaults.object(forKey: DefaultsKey.legacyBrightness) as? Double ?? LightConfiguration.defaultBrightness,
+                legacyObject(forKey: DefaultsKey.legacyBrightness, oldKey: OldDefaultsKey.legacyBrightness) as? Double
+                    ?? LightConfiguration.defaultBrightness,
                 to: LightConfiguration.brightnessRange
             ),
             colorTemperature: clamped(
-                userDefaults.object(forKey: DefaultsKey.legacyColorTemperature) as? Double ?? LightConfiguration.defaultColorTemperature,
+                legacyObject(forKey: DefaultsKey.legacyColorTemperature, oldKey: OldDefaultsKey.legacyColorTemperature) as? Double
+                    ?? LightConfiguration.defaultColorTemperature,
                 to: LightConfiguration.colorTemperatureRange
             ),
-            hdrPreference: userDefaults.object(forKey: DefaultsKey.legacyHDRPreference) as? Bool ?? true,
+            hdrPreference: legacyObject(forKey: DefaultsKey.legacyHDRPreference, oldKey: OldDefaultsKey.legacyHDRPreference) as? Bool ?? true,
             borderWidth: clamped(
-                CGFloat(userDefaults.object(forKey: DefaultsKey.legacyBorderWidth) as? Double ?? Double(LightConfiguration.defaultBorderWidth)),
+                CGFloat(
+                    legacyObject(forKey: DefaultsKey.legacyBorderWidth, oldKey: OldDefaultsKey.legacyBorderWidth) as? Double
+                        ?? Double(LightConfiguration.defaultBorderWidth)
+                ),
                 to: LightConfiguration.borderWidthRange
             ),
             effectMode: effectMode,
             primaryDirectionalLightAngle: clamped(
-                userDefaults.object(forKey: DefaultsKey.legacyPrimaryDirectionalLightAngle) as? Double
+                legacyObject(forKey: DefaultsKey.legacyPrimaryDirectionalLightAngle, oldKey: OldDefaultsKey.legacyPrimaryDirectionalLightAngle) as? Double
                     ?? LightConfiguration.defaultPrimaryDirectionalLightAngle,
                 to: LightConfiguration.directionalLightAngleRange
             ),
             secondaryDirectionalLightAngle: clamped(
-                userDefaults.object(forKey: DefaultsKey.legacySecondaryDirectionalLightAngle) as? Double
+                legacyObject(forKey: DefaultsKey.legacySecondaryDirectionalLightAngle, oldKey: OldDefaultsKey.legacySecondaryDirectionalLightAngle) as? Double
                     ?? LightConfiguration.defaultSecondaryDirectionalLightAngle,
                 to: LightConfiguration.directionalLightAngleRange
             )
         )
+    }
+
+    private func migrateDefaultsFromPreviousBundleIdentifierIfNeeded() {
+        guard userDefaults.object(forKey: DefaultsKey.displaySettings) == nil else { return }
+
+        if let rawDictionary = oldUserDefaults?.dictionary(forKey: OldDefaultsKey.displaySettings) {
+            userDefaults.set(rawDictionary, forKey: DefaultsKey.displaySettings)
+        }
+    }
+
+    private func legacyObject(forKey key: String, oldKey: String) -> Any? {
+        userDefaults.object(forKey: key) ?? oldUserDefaults?.object(forKey: oldKey)
+    }
+
+    private func legacyString(forKey key: String, oldKey: String) -> String? {
+        userDefaults.string(forKey: key) ?? oldUserDefaults?.string(forKey: oldKey)
     }
 
     private func persist(_ display: LightViewModel) {

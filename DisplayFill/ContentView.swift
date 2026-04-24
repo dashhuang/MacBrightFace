@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ContentView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @ObservedObject var display: LightViewModel
     @ObservedObject var lightController: LightController
     let showAbout: () -> Void
@@ -54,7 +55,7 @@ struct ContentView: View {
             return "HDR_BUTTON_UNAVAILABLE".localized
         }
 
-        return display.isHDREnabled ? "关闭" : "开启"
+        return display.isHDREnabled ? "COMMON_DISABLE".localized : "COMMON_ENABLE".localized
     }
 
     private var effectModeValueLabel: String {
@@ -88,15 +89,16 @@ struct ContentView: View {
         display.effectMode.supportsDirectionalLights
     }
 
+    private var palette: ControlPanelPalette {
+        ControlPanelPalette(colorScheme: colorScheme)
+    }
+
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [
-                            Color(red: 0.90, green: 0.91, blue: 0.94),
-                            Color(red: 0.83, green: 0.84, blue: 0.88)
-                        ],
+                        colors: palette.panelGradient,
                         startPoint: .top,
                         endPoint: .bottom
                     )
@@ -106,16 +108,16 @@ struct ContentView: View {
                 HStack(alignment: .center, spacing: 12) {
                     ZStack {
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(display.isOn ? Color.yellow.opacity(0.20) : Color.black.opacity(0.06))
+                            .fill(display.isOn ? palette.headerActiveIconBackground : palette.headerInactiveIconBackground)
                             .frame(width: 42, height: 42)
 
                         Image(systemName: display.isOn ? "lightbulb.fill" : "lightbulb")
                             .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(display.isOn ? Color(red: 0.95, green: 0.73, blue: 0.14) : .secondary)
+                            .foregroundStyle(display.isOn ? palette.headerActiveIconForeground : .secondary)
                     }
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("MacBrightFace")
+                        Text("DisplayFill")
                             .font(.system(size: 18, weight: .semibold))
                         Text(display.displayName)
                             .font(.caption)
@@ -124,7 +126,7 @@ struct ContentView: View {
 
                     Spacer()
 
-                    Button(display.isOn ? "关闭" : "开启") {
+                    Button(display.isOn ? "COMMON_DISABLE".localized : "COMMON_ENABLE".localized) {
                         lightController.toggleLight(for: display)
                     }
                     .buttonStyle(.borderedProminent)
@@ -136,16 +138,16 @@ struct ContentView: View {
                     title: "BRIGHTNESS_SLIDER".localized,
                     value: brightnessValueLabel,
                     icon: "sun.max.fill",
-                    iconTint: Color.black.opacity(0.8)
+                    iconTint: palette.primaryIconTint
                 ) {
                     PillSlider(
                         value: brightnessBinding,
                         range: LightConfiguration.brightnessRange,
-                        trackStyle: AnyShapeStyle(Color.black.opacity(0.11)),
+                        trackStyle: AnyShapeStyle(palette.sliderTrack),
                         progressStyle: AnyShapeStyle(Color(red: 0.08, green: 0.44, blue: 0.96)),
-                        knobStyle: AnyShapeStyle(Color.white),
-                        knobStroke: Color.white.opacity(0.95),
-                        knobShadow: Color.black.opacity(0.12),
+                        knobStyle: AnyShapeStyle(palette.sliderKnobFill),
+                        knobStroke: palette.sliderKnobStroke,
+                        knobShadow: palette.sliderKnobShadow,
                         showsProgress: true
                     )
                 }
@@ -155,7 +157,7 @@ struct ContentView: View {
                         title: "COLOR_TEMPERATURE".localized,
                         value: colorTemperatureValueLabel,
                         icon: "thermometer.sun.fill",
-                        iconTint: Color.black.opacity(0.8)
+                        iconTint: palette.primaryIconTint
                     ) {
                         PillSlider(
                             value: colorTemperatureBinding,
@@ -177,14 +179,14 @@ struct ContentView: View {
                                 LinearGradient(
                                     colors: [
                                         Color(red: 1.00, green: 0.96, blue: 0.90),
-                                        Color.white
+                                        palette.sliderKnobFill
                                     ],
                                     startPoint: .top,
                                     endPoint: .bottom
                                 )
                             ),
-                            knobStroke: Color.white.opacity(0.95),
-                            knobShadow: Color.orange.opacity(0.14),
+                            knobStroke: palette.sliderKnobStroke,
+                            knobShadow: palette.warmKnobShadow,
                             showsProgress: false
                         )
                     }
@@ -194,12 +196,12 @@ struct ContentView: View {
                     title: "BORDER_WIDTH_MENU".localized,
                     value: sizeValueLabel,
                     icon: "arrow.up.left.and.arrow.down.right",
-                    iconTint: Color.black.opacity(0.8)
+                    iconTint: palette.primaryIconTint
                 ) {
                     PillSlider(
                         value: borderWidthBinding,
                         range: Double(LightConfiguration.borderWidthRange.lowerBound)...Double(LightConfiguration.borderWidthRange.upperBound),
-                        trackStyle: AnyShapeStyle(Color.black.opacity(0.11)),
+                        trackStyle: AnyShapeStyle(palette.sliderTrack),
                         progressStyle: AnyShapeStyle(
                             LinearGradient(
                                 colors: [
@@ -210,9 +212,9 @@ struct ContentView: View {
                                 endPoint: .trailing
                             )
                         ),
-                        knobStyle: AnyShapeStyle(Color.white),
-                        knobStroke: Color.white.opacity(0.95),
-                        knobShadow: Color.black.opacity(0.12),
+                        knobStyle: AnyShapeStyle(palette.sliderKnobFill),
+                        knobStroke: palette.sliderKnobStroke,
+                        knobShadow: palette.sliderKnobShadow,
                         showsProgress: true
                     )
                 }
@@ -243,14 +245,7 @@ struct ContentView: View {
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(Color.white.opacity(0.42))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .stroke(Color.white.opacity(0.35), lineWidth: 1)
-                        )
-                )
+                .background(cardBackground)
 
                 Divider()
 
@@ -298,15 +293,15 @@ struct ContentView: View {
                     Image(systemName: "chevron.down")
                         .font(.system(size: 10, weight: .bold))
                 }
-                .foregroundStyle(Color.black.opacity(0.78))
+                .foregroundStyle(palette.menuForeground)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
                 .background(
                     Capsule(style: .continuous)
-                        .fill(Color.white.opacity(0.62))
+                        .fill(palette.elevatedFill)
                         .overlay(
                             Capsule(style: .continuous)
-                                .stroke(Color.white.opacity(0.70), lineWidth: 1)
+                                .stroke(palette.elevatedStroke, lineWidth: 1)
                         )
                 )
             }
@@ -315,14 +310,7 @@ struct ContentView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.white.opacity(0.42))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(Color.white.opacity(0.35), lineWidth: 1)
-                )
-        )
+        .background(cardBackground)
     }
 
     private var directionalLightAnglesCard: some View {
@@ -346,14 +334,7 @@ struct ContentView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.white.opacity(0.42))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(Color.white.opacity(0.35), lineWidth: 1)
-                )
-        )
+        .background(cardBackground)
     }
 
     @ViewBuilder
@@ -374,7 +355,7 @@ struct ContentView: View {
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
-                    .background(Capsule().fill(Color.white.opacity(0.55)))
+                    .background(Capsule().fill(palette.badgeFill))
             }
 
             HStack(spacing: 12) {
@@ -388,14 +369,79 @@ struct ContentView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.white.opacity(0.42))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(Color.white.opacity(0.35), lineWidth: 1)
-                )
-        )
+        .background(cardBackground)
+    }
+
+    private var cardBackground: some View {
+        RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .fill(palette.cardFill)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(palette.cardStroke, lineWidth: 1)
+            )
+    }
+}
+
+private struct ControlPanelPalette {
+    let panelGradient: [Color]
+    let cardFill: Color
+    let cardStroke: Color
+    let elevatedFill: Color
+    let elevatedStroke: Color
+    let badgeFill: Color
+    let sliderTrack: Color
+    let sliderKnobFill: Color
+    let sliderKnobStroke: Color
+    let sliderKnobShadow: Color
+    let warmKnobShadow: Color
+    let primaryIconTint: Color
+    let menuForeground: Color
+    let headerInactiveIconBackground: Color
+    let headerActiveIconBackground: Color
+    let headerActiveIconForeground: Color
+
+    init(colorScheme: ColorScheme) {
+        if colorScheme == .dark {
+            panelGradient = [
+                Color(red: 0.19, green: 0.20, blue: 0.24),
+                Color(red: 0.11, green: 0.12, blue: 0.15)
+            ]
+            cardFill = Color.white.opacity(0.08)
+            cardStroke = Color.white.opacity(0.10)
+            elevatedFill = Color.white.opacity(0.12)
+            elevatedStroke = Color.white.opacity(0.16)
+            badgeFill = Color.white.opacity(0.12)
+            sliderTrack = Color.white.opacity(0.14)
+            sliderKnobFill = Color(red: 0.96, green: 0.97, blue: 0.99)
+            sliderKnobStroke = Color.white.opacity(0.22)
+            sliderKnobShadow = Color.black.opacity(0.28)
+            warmKnobShadow = Color.orange.opacity(0.20)
+            primaryIconTint = Color.white.opacity(0.82)
+            menuForeground = Color.white.opacity(0.90)
+            headerInactiveIconBackground = Color.white.opacity(0.08)
+            headerActiveIconBackground = Color.yellow.opacity(0.24)
+            headerActiveIconForeground = Color(red: 1.00, green: 0.83, blue: 0.32)
+        } else {
+            panelGradient = [
+                Color(red: 0.90, green: 0.91, blue: 0.94),
+                Color(red: 0.83, green: 0.84, blue: 0.88)
+            ]
+            cardFill = Color.white.opacity(0.42)
+            cardStroke = Color.white.opacity(0.35)
+            elevatedFill = Color.white.opacity(0.62)
+            elevatedStroke = Color.white.opacity(0.70)
+            badgeFill = Color.white.opacity(0.55)
+            sliderTrack = Color.black.opacity(0.11)
+            sliderKnobFill = .white
+            sliderKnobStroke = Color.white.opacity(0.95)
+            sliderKnobShadow = Color.black.opacity(0.12)
+            warmKnobShadow = Color.orange.opacity(0.14)
+            primaryIconTint = Color.black.opacity(0.8)
+            menuForeground = Color.black.opacity(0.78)
+            headerInactiveIconBackground = Color.black.opacity(0.06)
+            headerActiveIconBackground = Color.yellow.opacity(0.20)
+            headerActiveIconForeground = Color(red: 0.95, green: 0.73, blue: 0.14)
+        }
     }
 }
 
@@ -462,6 +508,7 @@ private struct PillSlider: View {
 }
 
 private struct AngleDial: View {
+    @Environment(\.colorScheme) private var colorScheme
     @Binding var value: Double
     let label: String
     let accentColor: Color
@@ -477,18 +524,30 @@ private struct AngleDial: View {
         "\(Int(clampedValue.rounded()))°"
     }
 
+    private var dialFill: Color {
+        colorScheme == .dark ? Color.white.opacity(0.08) : Color.white.opacity(0.42)
+    }
+
+    private var dialStroke: Color {
+        colorScheme == .dark ? Color.white.opacity(0.16) : Color.white.opacity(0.78)
+    }
+
+    private var dialTrackStroke: Color {
+        colorScheme == .dark ? Color.white.opacity(0.10) : Color.black.opacity(0.08)
+    }
+
     var body: some View {
         VStack(spacing: 8) {
             ZStack {
                 Circle()
-                    .fill(Color.white.opacity(0.42))
+                    .fill(dialFill)
                     .overlay(
                         Circle()
-                            .stroke(Color.white.opacity(0.78), lineWidth: 1)
+                            .stroke(dialStroke, lineWidth: 1)
                     )
 
                 Circle()
-                    .stroke(Color.black.opacity(0.08), lineWidth: 11)
+                    .stroke(dialTrackStroke, lineWidth: 11)
 
                 Circle()
                     .stroke(accentColor.opacity(0.55), style: StrokeStyle(lineWidth: 6, lineCap: .round))
@@ -545,30 +604,59 @@ private struct AngleDial: View {
 }
 
 #Preview {
-    ContentView(
-        display: LightViewModel(
-            persistentID: "preview-display",
-            displayID: 1,
-            displayName: "Preview Display",
-            screenFrame: CGRect(x: 0, y: 0, width: 1440, height: 900),
-            visibleFrame: CGRect(x: 0, y: 0, width: 1440, height: 860),
-            isOn: true,
-            brightness: LightConfiguration.defaultBrightness,
-            colorTemperature: LightConfiguration.defaultColorTemperature,
-            isHDREnabled: true,
-            hasHDRDisplay: true,
-            preferredHDREnabled: true,
-            maxHDRFactor: 2.0,
-            borderWidth: LightConfiguration.defaultBorderWidth,
-            effectMode: .professional,
-            primaryDirectionalLightAngle: LightConfiguration.defaultPrimaryDirectionalLightAngle,
-            secondaryDirectionalLightAngle: LightConfiguration.defaultSecondaryDirectionalLightAngle,
-            mouseLocation: CGPoint(x: 720, y: 450)
-        ),
-        lightController: LightController(),
-        showAbout: {},
-        quitApp: {}
-    )
+    Group {
+        ContentView(
+            display: LightViewModel(
+                persistentID: "preview-display",
+                displayID: 1,
+                displayName: "Preview Display",
+                screenFrame: CGRect(x: 0, y: 0, width: 1440, height: 900),
+                visibleFrame: CGRect(x: 0, y: 0, width: 1440, height: 860),
+                isOn: true,
+                brightness: LightConfiguration.defaultBrightness,
+                colorTemperature: LightConfiguration.defaultColorTemperature,
+                isHDREnabled: true,
+                hasHDRDisplay: true,
+                preferredHDREnabled: true,
+                maxHDRFactor: 2.0,
+                borderWidth: LightConfiguration.defaultBorderWidth,
+                effectMode: .professional,
+                primaryDirectionalLightAngle: LightConfiguration.defaultPrimaryDirectionalLightAngle,
+                secondaryDirectionalLightAngle: LightConfiguration.defaultSecondaryDirectionalLightAngle,
+                mouseLocation: CGPoint(x: 720, y: 450)
+            ),
+            lightController: LightController(),
+            showAbout: {},
+            quitApp: {}
+        )
+        .preferredColorScheme(.light)
+
+        ContentView(
+            display: LightViewModel(
+                persistentID: "preview-display",
+                displayID: 1,
+                displayName: "Preview Display",
+                screenFrame: CGRect(x: 0, y: 0, width: 1440, height: 900),
+                visibleFrame: CGRect(x: 0, y: 0, width: 1440, height: 860),
+                isOn: true,
+                brightness: LightConfiguration.defaultBrightness,
+                colorTemperature: LightConfiguration.defaultColorTemperature,
+                isHDREnabled: true,
+                hasHDRDisplay: true,
+                preferredHDREnabled: true,
+                maxHDRFactor: 2.0,
+                borderWidth: LightConfiguration.defaultBorderWidth,
+                effectMode: .professional,
+                primaryDirectionalLightAngle: LightConfiguration.defaultPrimaryDirectionalLightAngle,
+                secondaryDirectionalLightAngle: LightConfiguration.defaultSecondaryDirectionalLightAngle,
+                mouseLocation: CGPoint(x: 720, y: 450)
+            ),
+            lightController: LightController(),
+            showAbout: {},
+            quitApp: {}
+        )
+        .preferredColorScheme(.dark)
+    }
 }
 
 private extension LightEffectMode {

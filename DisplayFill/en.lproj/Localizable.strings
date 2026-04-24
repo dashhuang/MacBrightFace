@@ -1,13 +1,13 @@
 /* 
   Localizable.strings
-  MacBrightFace
+  DisplayFill
   
   English localization
 */
 
 // App menu items
-"TOGGLE_LIGHT_ON" = "Turn On MacBrightFace";
-"TOGGLE_LIGHT_OFF" = "Turn Off MacBrightFace";
+"TOGGLE_LIGHT_ON" = "Turn On DisplayFill";
+"TOGGLE_LIGHT_OFF" = "Turn Off DisplayFill";
 "BRIGHTNESS_SLIDER" = "Adjust Brightness";
 "COLOR_TEMPERATURE" = "Color Temperature";
 "BORDER_WIDTH_MENU" = "Light Size";
@@ -16,7 +16,9 @@
 "HDR_MODE_OFF" = "HDR Mode: Off";
 "HDR_MODE_UNAVAILABLE" = "This display doesn't support HDR";
 "HDR_BUTTON_UNAVAILABLE" = "Unsupported";
-"ABOUT_LIGHT" = "About MacBrightFace";
+"COMMON_ENABLE" = "Enable";
+"COMMON_DISABLE" = "Disable";
+"ABOUT_LIGHT" = "About DisplayFill";
 "QUIT" = "Quit";
 
 // UI labels
