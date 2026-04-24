@@ -10,7 +10,7 @@ private final class DisplayControlPanel: NSPanel {
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
-    private let logger = Logger(subsystem: "cn.huang.dash.MacBrightFace", category: "ControlPanels")
+    private let logger = Logger(subsystem: "cn.huang.dash.DisplayFill", category: "ControlPanels")
     private var statusBarItem: NSStatusItem!
     private let lightController = LightController()
     private let statusPopover = NSPopover()
@@ -64,7 +64,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private func configureApplicationMenu() {
         let mainMenu = NSMenu()
 
-        let appMenuItem = NSMenuItem(title: "MacBrightFace", action: nil, keyEquivalent: "")
+        let appMenuItem = NSMenuItem(title: "DisplayFill", action: nil, keyEquivalent: "")
         let appMenu = NSMenu()
         appMenuItem.submenu = appMenu
 
@@ -482,7 +482,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 }
 
 @main
-struct MacBrightFaceApp: App {
+struct DisplayFillApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {

@@ -1,0 +1,39 @@
+/*
+  Localizable.strings
+  DisplayFill
+
+  French localization
+*/
+
+// App menu items
+"TOGGLE_LIGHT_ON" = "Activer l’éclairage Mac";
+"TOGGLE_LIGHT_OFF" = "Désactiver l’éclairage Mac";
+"BRIGHTNESS_SLIDER" = "Régler la luminosité";
+"COLOR_TEMPERATURE" = "Température de couleur";
+"BORDER_WIDTH_MENU" = "Taille de l’éclairage";
+"LIGHT_EFFECT_MENU" = "Type d’éclairage";
+"HDR_MODE_ON" = "Mode HDR : activé";
+"HDR_MODE_OFF" = "Mode HDR : désactivé";
+"HDR_MODE_UNAVAILABLE" = "Cet écran ne prend pas en charge le HDR";
+"HDR_BUTTON_UNAVAILABLE" = "Non pris en charge";
+"COMMON_ENABLE" = "Activer";
+"COMMON_DISABLE" = "Désactiver";
+"ABOUT_LIGHT" = "À propos de DisplayFill";
+"QUIT" = "Quitter";
+
+// UI labels
+"BRIGHTNESS_LABEL" = "Luminosité : %@%%";
+"COLOR_TEMPERATURE_LABEL" = "Température de couleur : %@";
+"BORDER_WIDTH_LABEL" = "Taille de l’éclairage : %@ px";
+"LIGHT_TEMPERATURE_WARM" = "Chaude";
+"LIGHT_TEMPERATURE_NEUTRAL" = "Neutre";
+"LIGHT_TEMPERATURE_COOL" = "Froide";
+"LIGHT_EFFECT_NORMAL" = "Éclairage d’appoint";
+"LIGHT_EFFECT_PROFESSIONAL" = "Éclairage d’appoint pro";
+"LIGHT_EFFECT_POLICE" = "Voiture de police";
+"LIGHT_EFFECT_FIRE_TRUCK" = "Camion de pompiers";
+"LIGHT_EFFECT_CAMPFIRE" = "Feu de camp";
+"LIGHT_EFFECT_DISCO" = "Disco";
+"PRO_DIRECTIONAL_LIGHT_ANGLES" = "Angles d’éclairage";
+"PRO_DIRECTIONAL_LIGHT_PRIMARY" = "Principal";
+"PRO_DIRECTIONAL_LIGHT_SECONDARY" = "Appoint";

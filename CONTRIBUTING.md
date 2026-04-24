@@ -1,4 +1,4 @@
-# Contributing to MacBrightFace
+# Contributing to DisplayFill
 
 ## Development Setup
 
@@ -8,9 +8,9 @@
 Clone the repository and open the project:
 
 ```bash
-git clone https://github.com/dashhuang/MacBrightFace.git
-cd MacBrightFace
-open MacBrightFace.xcodeproj
+git clone https://github.com/dashhuang/DisplayFill.git
+cd DisplayFill
+open DisplayFill.xcodeproj
 ```
 
 ## Local Checks
@@ -18,13 +18,13 @@ open MacBrightFace.xcodeproj
 Before opening a pull request, run at least the Release build check:
 
 ```bash
-xcodebuild -project MacBrightFace.xcodeproj -scheme MacBrightFace -configuration Release -destination 'generic/platform=macOS' CODE_SIGNING_ALLOWED=NO build
+xcodebuild -project DisplayFill.xcodeproj -scheme DisplayFill -configuration Release -destination 'generic/platform=macOS' CODE_SIGNING_ALLOWED=NO build
 ```
 
 If you want a faster source-level check:
 
 ```bash
-xcrun swiftc -typecheck MacBrightFace/*.swift
+xcrun swiftc -typecheck DisplayFill/*.swift
 ```
 
 ## Reporting Bugs

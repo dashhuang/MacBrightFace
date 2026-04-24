@@ -3,8 +3,8 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-PROJECT_PATH="${PROJECT_PATH:-$ROOT_DIR/MacBrightFace.xcodeproj}"
-SCHEME="${SCHEME:-MacBrightFace}"
+PROJECT_PATH="${PROJECT_PATH:-$ROOT_DIR/DisplayFill.xcodeproj}"
+SCHEME="${SCHEME:-DisplayFill}"
 CONFIGURATION="${CONFIGURATION:-Release}"
 BUILD_DIR="${BUILD_DIR:-$ROOT_DIR/build}"
 DIST_DIR="${DIST_DIR:-$ROOT_DIR/dist}"

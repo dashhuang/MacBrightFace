@@ -1,6 +1,6 @@
 /* 
   Localizable.strings
-  MacBrightFace
+  DisplayFill
   
   Traditional Chinese localization
 */
@@ -16,7 +16,9 @@
 "HDR_MODE_OFF" = "HDR模式: 關閉";
 "HDR_MODE_UNAVAILABLE" = "這個顯示器不支援 HDR";
 "HDR_BUTTON_UNAVAILABLE" = "不支援";
-"ABOUT_LIGHT" = "關於 MacBrightFace";
+"COMMON_ENABLE" = "開啟";
+"COMMON_DISABLE" = "關閉";
+"ABOUT_LIGHT" = "關於 DisplayFill";
 "QUIT" = "退出";
 
 // UI labels

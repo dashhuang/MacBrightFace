@@ -1,10 +1,10 @@
-# MacBrightFace Direct Release
+# DisplayFill Direct Release
 
 This project is configured for direct macOS distribution with `Developer ID` signing and notarization. It does not cover the Mac App Store path.
 
 ## What Changed
 
-- `Release` builds use `MacBrightFace/LightRelease.entitlements` instead of the sandbox entitlements file.
+- `Release` builds use `DisplayFill/LightRelease.entitlements` instead of the sandbox entitlements file.
 - `Release` builds enable Hardened Runtime, which Apple requires for notarized macOS apps distributed outside the Mac App Store.
 - `scripts/set_version.sh` updates the app version and build number in the Xcode project.
 - `scripts/release_direct.sh` archives, exports, verifies, notarizes, staples, and zips the app.
@@ -16,7 +16,7 @@ This project is configured for direct macOS distribution with `Developer ID` sig
 3. Create a notary keychain profile with `notarytool`.
 
 ```bash
-xcrun notarytool store-credentials "MacBrightFace-Notary" \
+xcrun notarytool store-credentials "DisplayFill-Notary" \
   --apple-id "YOUR_APPLE_ID" \
   --team-id "YOUR_TEAM_ID" \
   --password "YOUR_APP_SPECIFIC_PASSWORD"
@@ -38,7 +38,7 @@ Run the commands below from the repository root.
 
 ```bash
 TEAM_ID="YOUR_TEAM_ID" \
-NOTARY_PROFILE="MacBrightFace-Notary" \
+NOTARY_PROFILE="DisplayFill-Notary" \
 ./scripts/release_direct.sh
 ```
 
@@ -58,10 +58,10 @@ That produces a zip in `dist/`, but it is not suitable for public distribution.
 
 ## Output Files
 
-- `build/MacBrightFace.xcarchive`
-- `dist/export/MacBrightFace.app`
-- `dist/MacBrightFace-<version>-<build>-macOS.zip`
-- `dist/MacBrightFace-<version>-<build>-macOS.notary.json`
+- `build/DisplayFill.xcarchive`
+- `dist/export/DisplayFill.app`
+- `dist/DisplayFill-<version>-<build>-macOS.zip`
+- `dist/DisplayFill-<version>-<build>-macOS.notary.json`
 
 ## Verification
 
@@ -75,5 +75,5 @@ If notarization fails, inspect the JSON log saved in `dist/`.
 
 ## Notes
 
-- The checked-in `MacBrightFace/Info.plist` is only kept in sync for reference. The app target uses `GENERATE_INFOPLIST_FILE = YES`, so the shipping app version comes from Xcode build settings.
+- The app target uses the checked-in `DisplayFill/Info.plist`; keep its version fields in sync with the Xcode build settings.
 - If you later want in-app auto-updates for direct distribution, add Sparkle on top of this release pipeline rather than replacing it.

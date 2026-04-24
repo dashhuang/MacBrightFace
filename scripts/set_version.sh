@@ -10,8 +10,8 @@ fi
 VERSION="$1"
 BUILD_NUMBER="$2"
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-PROJECT_FILE="$ROOT_DIR/MacBrightFace.xcodeproj/project.pbxproj"
-INFO_PLIST="$ROOT_DIR/MacBrightFace/Info.plist"
+PROJECT_FILE="$ROOT_DIR/DisplayFill.xcodeproj/project.pbxproj"
+INFO_PLIST="$ROOT_DIR/DisplayFill/Info.plist"
 
 [[ -f "$PROJECT_FILE" ]] || {
 	echo "error: missing project file: $PROJECT_FILE" >&2

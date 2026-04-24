@@ -1,0 +1,39 @@
+/*
+  Localizable.strings
+  DisplayFill
+
+  Spanish localization
+*/
+
+// App menu items
+"TOGGLE_LIGHT_ON" = "Activar luz Mac";
+"TOGGLE_LIGHT_OFF" = "Desactivar luz Mac";
+"BRIGHTNESS_SLIDER" = "Ajustar brillo";
+"COLOR_TEMPERATURE" = "Temperatura de color";
+"BORDER_WIDTH_MENU" = "Tamaño de la luz";
+"LIGHT_EFFECT_MENU" = "Tipo de luz";
+"HDR_MODE_ON" = "Modo HDR: activado";
+"HDR_MODE_OFF" = "Modo HDR: desactivado";
+"HDR_MODE_UNAVAILABLE" = "Esta pantalla no admite HDR";
+"HDR_BUTTON_UNAVAILABLE" = "No compatible";
+"COMMON_ENABLE" = "Activar";
+"COMMON_DISABLE" = "Desactivar";
+"ABOUT_LIGHT" = "Acerca de DisplayFill";
+"QUIT" = "Salir";
+
+// UI labels
+"BRIGHTNESS_LABEL" = "Brillo: %@%%";
+"COLOR_TEMPERATURE_LABEL" = "Temperatura de color: %@";
+"BORDER_WIDTH_LABEL" = "Tamaño de la luz: %@ px";
+"LIGHT_TEMPERATURE_WARM" = "Cálida";
+"LIGHT_TEMPERATURE_NEUTRAL" = "Neutra";
+"LIGHT_TEMPERATURE_COOL" = "Fría";
+"LIGHT_EFFECT_NORMAL" = "Luz de relleno";
+"LIGHT_EFFECT_PROFESSIONAL" = "Luz de relleno pro";
+"LIGHT_EFFECT_POLICE" = "Coche de policía";
+"LIGHT_EFFECT_FIRE_TRUCK" = "Camión de bomberos";
+"LIGHT_EFFECT_CAMPFIRE" = "Fogata";
+"LIGHT_EFFECT_DISCO" = "Disco";
+"PRO_DIRECTIONAL_LIGHT_ANGLES" = "Ángulos de luz";
+"PRO_DIRECTIONAL_LIGHT_PRIMARY" = "Principal";
+"PRO_DIRECTIONAL_LIGHT_SECONDARY" = "Relleno";

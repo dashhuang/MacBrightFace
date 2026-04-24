@@ -14,11 +14,11 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Build MacBrightFace
+      - name: Build DisplayFill
         run: |
           xcodebuild \
-            -project MacBrightFace.xcodeproj \
-            -scheme MacBrightFace \
+            -project DisplayFill.xcodeproj \
+            -scheme DisplayFill \
             -configuration Release \
             -destination 'generic/platform=macOS' \
             CODE_SIGNING_ALLOWED=NO \
