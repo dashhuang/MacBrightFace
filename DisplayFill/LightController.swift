@@ -594,8 +594,12 @@ final class LightController: ObservableObject {
         for display in displays {
             guard let snapshot = snapshots[display.persistentID] else { continue }
 
-            if abs(display.currentHDRFactor - snapshot.currentHDRFactor) > 0.01 {
-                display.currentHDRFactor = snapshot.currentHDRFactor
+            let renderHDRFactor = renderHDRFactor(
+                currentDisplayFactor: display.currentHDRFactor,
+                rawDisplayFactor: snapshot.currentHDRFactor
+            )
+            if abs(display.currentHDRFactor - renderHDRFactor) > 0.01 {
+                display.currentHDRFactor = renderHDRFactor
             }
 
             guard snapshot.maxHDRFactor > 1.0 else { continue }
@@ -606,6 +610,16 @@ final class LightController: ObservableObject {
                 currentHDRFactor: snapshot.currentHDRFactor
             )
         }
+    }
+
+    private func renderHDRFactor(currentDisplayFactor: Double, rawDisplayFactor: Double) -> Double {
+        let clampedRawFactor = max(1.0, rawDisplayFactor)
+
+        if clampedRawFactor <= 1.01, currentDisplayFactor > 1.01 {
+            return currentDisplayFactor
+        }
+
+        return clampedRawFactor
     }
 
     private func currentHDRHeadroomSnapshotsByPersistentID() -> [String: HDRHeadroomSnapshot] {
