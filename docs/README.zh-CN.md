@@ -42,7 +42,12 @@ DisplayFill 在支持 HDR 的显示器上表现最好。它不只是提供轻微
 
 ### 下载发行版
 
-预编译版本会在 [GitHub Releases](https://github.com/dashhuang/DisplayFill/releases) 页面发布。
+下载最新的已签名、已通过 Apple 公证的 macOS 版本：
+
+- [DisplayFill 1.0.3 for macOS](https://github.com/dashhuang/DisplayFill/releases/download/v1.0.3/DisplayFill-1.0.3-4-macOS.zip)
+- [全部 GitHub Releases](https://github.com/dashhuang/DisplayFill/releases)
+
+这个直装版本已经使用 Developer ID 签名，并通过 Apple 公证。
 
 ### 从源码构建
 

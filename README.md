@@ -37,7 +37,12 @@ On standard SDR displays, the app still works, but the gap versus the built-in s
 
 ### Download
 
-Prebuilt releases are published on the [GitHub Releases](https://github.com/dashhuang/DisplayFill/releases) page when available.
+Download the latest signed and notarized macOS build:
+
+- [DisplayFill 1.0.3 for macOS](https://github.com/dashhuang/DisplayFill/releases/download/v1.0.3/DisplayFill-1.0.3-4-macOS.zip)
+- [All GitHub Releases](https://github.com/dashhuang/DisplayFill/releases)
+
+This direct-download build is signed with Developer ID and notarized by Apple.
 
 ### Build from source
 
