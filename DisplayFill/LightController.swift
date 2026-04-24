@@ -155,7 +155,23 @@ final class LightController: ObservableObject {
         let visibleFrame: CGRect
         let hasHDRDisplay: Bool
         let maxHDRFactor: Double
+        let currentHDRFactor: Double
         let screen: NSScreen
+    }
+
+    private struct HDRHeadroom {
+        let maxHDRFactor: Double
+        let currentHDRFactor: Double
+
+        var hasHDRDisplay: Bool {
+            maxHDRFactor > 1.0
+        }
+    }
+
+    private struct HDRHeadroomSnapshot: Equatable {
+        let displayName: String
+        let maxHDRFactor: Double
+        let currentHDRFactor: Double
     }
 
     private final class DisplayContext {
@@ -175,6 +191,11 @@ final class LightController: ObservableObject {
     private var lastScreenLayout: [ScreenLayoutSignature] = []
     private var globalMouseMonitor: Any?
     private var localMouseMonitor: Any?
+    private var edrRefreshTimer: Timer?
+    private var pointerRefreshTimer: Timer?
+    private var pointerTrackedDisplayID: String?
+    private var lastLoggedHDRHeadroom: [String: HDRHeadroomSnapshot] = [:]
+    private var lastLoggedHDRHeadroomTimes: [String: TimeInterval] = [:]
     private let userDefaults = UserDefaults.standard
     private let oldUserDefaults = UserDefaults(suiteName: OldDefaultsKey.suiteName)
     private var persistedDisplaySettings: [String: PersistedDisplaySettings] = [:]
@@ -187,6 +208,7 @@ final class LightController: ObservableObject {
         rebuildDisplayContexts()
         observeScreenChanges()
         observeMouseLocation()
+        observeEDRHeadroom()
     }
 
     deinit {
@@ -197,6 +219,9 @@ final class LightController: ObservableObject {
         if let localMouseMonitor {
             NSEvent.removeMonitor(localMouseMonitor)
         }
+
+        edrRefreshTimer?.invalidate()
+        pointerRefreshTimer?.invalidate()
     }
 
     func completeLaunch() {
@@ -325,6 +350,11 @@ final class LightController: ObservableObject {
             }
         }
 
+        if let pointerTrackedDisplayID, !descriptorIDs.contains(pointerTrackedDisplayID) {
+            self.pointerTrackedDisplayID = nil
+            updatePointerRefreshTimer(isActive: false)
+        }
+
         for descriptor in descriptors {
             let context = displayContexts[descriptor.persistentID] ?? makeDisplayContext(for: descriptor)
             update(context.model, with: descriptor)
@@ -333,6 +363,7 @@ final class LightController: ObservableObject {
         }
 
         displays = descriptors.compactMap { displayContexts[$0.persistentID]?.model }
+        logHDRHeadroomIfNeeded(for: descriptors)
         updateAnyDisplayOn()
     }
 
@@ -340,25 +371,18 @@ final class LightController: ObservableObject {
         NSScreen.screens
             .map { screen in
                 let displayID = displayID(for: screen)
-                let maxHDRFactor: Double
-                let hasHDRDisplay: Bool
-
-                if #available(macOS 11.0, *) {
-                    maxHDRFactor = max(1.0, screen.maximumPotentialExtendedDynamicRangeColorComponentValue)
-                    hasHDRDisplay = maxHDRFactor > 1.0
-                } else {
-                    maxHDRFactor = 1.0
-                    hasHDRDisplay = false
-                }
+                let persistentID = persistentDisplayID(for: displayID)
+                let hdrHeadroom = hdrHeadroom(for: screen)
 
                 return ScreenDescriptor(
-                    persistentID: persistentDisplayID(for: displayID),
+                    persistentID: persistentID,
                     displayID: displayID,
                     displayName: screen.localizedName,
                     frame: screen.frame,
                     visibleFrame: screen.visibleFrame,
-                    hasHDRDisplay: hasHDRDisplay,
-                    maxHDRFactor: maxHDRFactor,
+                    hasHDRDisplay: hdrHeadroom.hasHDRDisplay,
+                    maxHDRFactor: hdrHeadroom.maxHDRFactor,
+                    currentHDRFactor: hdrHeadroom.currentHDRFactor,
                     screen: screen
                 )
             }
@@ -381,6 +405,17 @@ final class LightController: ObservableObject {
         }
     }
 
+    private func hdrHeadroom(for screen: NSScreen) -> HDRHeadroom {
+        guard #available(macOS 11.0, *) else {
+            return HDRHeadroom(maxHDRFactor: 1.0, currentHDRFactor: 1.0)
+        }
+
+        return HDRHeadroom(
+            maxHDRFactor: max(1.0, screen.maximumPotentialExtendedDynamicRangeColorComponentValue),
+            currentHDRFactor: max(1.0, screen.maximumExtendedDynamicRangeColorComponentValue)
+        )
+    }
+
     private func makeDisplayContext(for descriptor: ScreenDescriptor) -> DisplayContext {
         let settings = persistedDisplaySettings[descriptor.persistentID] ?? legacyDisplaySettings()
         let model = LightViewModel(
@@ -396,6 +431,7 @@ final class LightController: ObservableObject {
             hasHDRDisplay: descriptor.hasHDRDisplay,
             preferredHDREnabled: settings.hdrPreference,
             maxHDRFactor: descriptor.maxHDRFactor,
+            currentHDRFactor: descriptor.currentHDRFactor,
             borderWidth: settings.borderWidth,
             effectMode: settings.effectMode,
             primaryDirectionalLightAngle: settings.primaryDirectionalLightAngle,
@@ -413,6 +449,7 @@ final class LightController: ObservableObject {
         model.visibleFrame = descriptor.visibleFrame
         model.hasHDRDisplay = descriptor.hasHDRDisplay
         model.maxHDRFactor = descriptor.maxHDRFactor
+        model.currentHDRFactor = descriptor.currentHDRFactor
         model.isHDREnabled = descriptor.hasHDRDisplay && model.preferredHDREnabled
     }
 
@@ -504,10 +541,131 @@ final class LightController: ObservableObject {
 
     private func updateMouseLocation() {
         let mouseLocation = NSEvent.mouseLocation
-        for display in displays {
-            let shouldTrackMouse = !display.isHDREnabled || display.maxHDRFactor >= 8.0
-            display.updateMouseLocation(shouldTrackMouse ? mouseLocation : nil)
+        let usesMetalRenderer = MetalLightView.shouldRenderOverlays
+        let activeDisplay = displays.first { display in
+            let shouldTrackMouse = usesMetalRenderer || !display.isHDREnabled || display.maxHDRFactor >= 8.0
+            return shouldTrackMouse && display.screenFrame.contains(mouseLocation)
         }
+        let activeDisplayID = activeDisplay?.persistentID
+
+        if pointerTrackedDisplayID != activeDisplayID, let previousDisplayID = pointerTrackedDisplayID {
+            displayContexts[previousDisplayID]?.model.updateMouseLocation(nil)
+        }
+
+        activeDisplay?.updateMouseLocation(mouseLocation)
+        pointerTrackedDisplayID = activeDisplayID
+
+        let needsPointerRefresh = activeDisplay?.isOn == true && usesMetalRenderer
+        updatePointerRefreshTimer(isActive: needsPointerRefresh)
+    }
+
+    private func updatePointerRefreshTimer(isActive: Bool) {
+        if isActive {
+            guard pointerRefreshTimer == nil else { return }
+
+            let timer = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.updateMouseLocation()
+                }
+            }
+            RunLoop.main.add(timer, forMode: .common)
+            pointerRefreshTimer = timer
+        } else {
+            pointerRefreshTimer?.invalidate()
+            pointerRefreshTimer = nil
+        }
+    }
+
+    private func observeEDRHeadroom() {
+        let timer = Timer(timeInterval: 1.0, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.refreshCurrentHDRFactors()
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        edrRefreshTimer = timer
+        refreshCurrentHDRFactors()
+    }
+
+    private func refreshCurrentHDRFactors() {
+        guard !displays.isEmpty else { return }
+
+        let snapshots = currentHDRHeadroomSnapshotsByPersistentID()
+        for display in displays {
+            guard let snapshot = snapshots[display.persistentID] else { continue }
+
+            if abs(display.currentHDRFactor - snapshot.currentHDRFactor) > 0.01 {
+                display.currentHDRFactor = snapshot.currentHDRFactor
+            }
+
+            guard snapshot.maxHDRFactor > 1.0 else { continue }
+            logHDRHeadroomIfNeeded(
+                persistentID: display.persistentID,
+                displayName: snapshot.displayName,
+                maxHDRFactor: snapshot.maxHDRFactor,
+                currentHDRFactor: snapshot.currentHDRFactor
+            )
+        }
+    }
+
+    private func currentHDRHeadroomSnapshotsByPersistentID() -> [String: HDRHeadroomSnapshot] {
+        var snapshots: [String: HDRHeadroomSnapshot] = [:]
+        for screen in NSScreen.screens {
+            let displayID = displayID(for: screen)
+            let persistentID = persistentDisplayID(for: displayID)
+            let headroom = hdrHeadroom(for: screen)
+            snapshots[persistentID] = HDRHeadroomSnapshot(
+                displayName: screen.localizedName,
+                maxHDRFactor: headroom.maxHDRFactor,
+                currentHDRFactor: headroom.currentHDRFactor
+            )
+        }
+        return snapshots
+    }
+
+    private func logHDRHeadroomIfNeeded(for descriptors: [ScreenDescriptor]) {
+        for descriptor in descriptors where descriptor.hasHDRDisplay {
+            logHDRHeadroomIfNeeded(
+                persistentID: descriptor.persistentID,
+                displayName: descriptor.displayName,
+                maxHDRFactor: descriptor.maxHDRFactor,
+                currentHDRFactor: descriptor.currentHDRFactor
+            )
+        }
+    }
+
+    private func logHDRHeadroomIfNeeded(
+        persistentID: String,
+        displayName: String,
+        maxHDRFactor: Double,
+        currentHDRFactor: Double
+    ) {
+        let snapshot = HDRHeadroomSnapshot(
+            displayName: displayName,
+            maxHDRFactor: maxHDRFactor,
+            currentHDRFactor: currentHDRFactor
+        )
+
+        if
+            let previousSnapshot = lastLoggedHDRHeadroom[persistentID],
+            previousSnapshot.displayName == snapshot.displayName
+        {
+            let now = Date().timeIntervalSinceReferenceDate
+            let lastLoggedAt = lastLoggedHDRHeadroomTimes[persistentID] ?? 0
+            let potentialChanged = abs(previousSnapshot.maxHDRFactor - snapshot.maxHDRFactor) > 0.01
+            let currentChangedEnough = abs(previousSnapshot.currentHDRFactor - snapshot.currentHDRFactor) > 0.25
+            let isThrottled = now - lastLoggedAt < 0.75
+
+            if !potentialChanged && (!currentChangedEnough || isThrottled) {
+                return
+            }
+        }
+
+        lastLoggedHDRHeadroom[persistentID] = snapshot
+        lastLoggedHDRHeadroomTimes[persistentID] = Date().timeIntervalSinceReferenceDate
+        logger.info(
+            "HDR headroom display=\(displayName, privacy: .public) potential=\(maxHDRFactor, privacy: .public) current=\(currentHDRFactor, privacy: .public)"
+        )
     }
 
     private func updateAnyDisplayOn() {

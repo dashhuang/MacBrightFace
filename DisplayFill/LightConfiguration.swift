@@ -49,6 +49,10 @@ enum LightConfiguration {
     static let directionalLightAngleRange: ClosedRange<Double> = 0.0...360.0
     static let defaultPrimaryDirectionalLightAngle = 130.0
     static let defaultSecondaryDirectionalLightAngle = 68.0
+    static let professionalPrimaryLightEnergy = 1.0
+    static let professionalSecondaryLightEnergy = 0.6
+    static let professionalRingBrightnessScale = professionalPrimaryLightEnergy * 0.3
+    static let professionalKeyHDRIntensityBoost = 1.12
 
     static let standardMaxBrightness = 1.35
     static let minimumCornerRadius: CGFloat = 44.0

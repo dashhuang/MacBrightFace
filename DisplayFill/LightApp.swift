@@ -8,6 +8,12 @@ private final class DisplayControlPanel: NSPanel {
     override var canBecomeMain: Bool { false }
 }
 
+private final class ControlPanelHostingView<Content: View>: NSHostingView<Content> {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        true
+    }
+}
+
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private let logger = Logger(subsystem: "cn.huang.dash.DisplayFill", category: "ControlPanels")
@@ -15,6 +21,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private let lightController = LightController()
     private let statusPopover = NSPopover()
     private var controlPanels: [String: NSPanel] = [:]
+    private var localControlPanelDismissMonitor: Any?
+    private var globalControlPanelDismissMonitor: Any?
     private var displayEffectModeCancellables: [String: AnyCancellable] = [:]
     private var cancellables: Set<AnyCancellable> = []
     private var areControlPanelsVisible = false
@@ -97,7 +105,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     private func setupStatusPopover() {
-        statusPopover.behavior = .semitransient
+        statusPopover.behavior = .applicationDefined
         statusPopover.animates = false
         statusPopover.delegate = self
     }
@@ -186,6 +194,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         currentPrimaryDisplayID = resolvedPrimaryDisplay.persistentID
         currentAnchorOffsetFromRight = resolvedAnchorOffset
         areControlPanelsVisible = true
+        installControlPanelDismissMonitors()
+        NSApp.activate(ignoringOtherApps: true)
 
         if refreshingPrimaryPopover {
             closeControlPanels()
@@ -232,6 +242,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     private func hideControlPanels() {
         cancelVisibleControlPanelRefresh()
+        removeControlPanelDismissMonitors()
         closeControlPanels()
         closePrimaryPopoverProgrammatically()
         areControlPanelsVisible = false
@@ -297,6 +308,75 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         return buttonFrame.contains(screenPoint)
     }
 
+    private func installControlPanelDismissMonitors() {
+        guard localControlPanelDismissMonitor == nil, globalControlPanelDismissMonitor == nil else { return }
+
+        let mouseDownEvents: NSEvent.EventTypeMask = [
+            .leftMouseDown,
+            .rightMouseDown,
+            .otherMouseDown
+        ]
+
+        localControlPanelDismissMonitor = NSEvent.addLocalMonitorForEvents(matching: mouseDownEvents) { [weak self] event in
+            guard let self else { return event }
+            dismissControlPanelsIfNeeded(forMouseDownAt: screenPoint(for: event))
+            return event
+        }
+
+        globalControlPanelDismissMonitor = NSEvent.addGlobalMonitorForEvents(matching: mouseDownEvents) { [weak self] _ in
+            DispatchQueue.main.async { [weak self] in
+                self?.dismissControlPanelsIfNeeded(forMouseDownAt: NSEvent.mouseLocation)
+            }
+        }
+    }
+
+    private func removeControlPanelDismissMonitors() {
+        if let localControlPanelDismissMonitor {
+            NSEvent.removeMonitor(localControlPanelDismissMonitor)
+            self.localControlPanelDismissMonitor = nil
+        }
+
+        if let globalControlPanelDismissMonitor {
+            NSEvent.removeMonitor(globalControlPanelDismissMonitor)
+            self.globalControlPanelDismissMonitor = nil
+        }
+    }
+
+    private func screenPoint(for event: NSEvent) -> CGPoint {
+        guard let window = event.window else {
+            return NSEvent.mouseLocation
+        }
+
+        return window.convertToScreen(NSRect(origin: event.locationInWindow, size: .zero)).origin
+    }
+
+    private func dismissControlPanelsIfNeeded(forMouseDownAt screenPoint: CGPoint) {
+        guard areControlPanelsVisible || statusPopover.isShown else {
+            removeControlPanelDismissMonitors()
+            return
+        }
+
+        guard !controlPanelUIContains(screenPoint) else { return }
+        hideControlPanels()
+    }
+
+    private func controlPanelUIContains(_ screenPoint: CGPoint) -> Bool {
+        if clickedStatusBarButton(at: screenPoint) {
+            return true
+        }
+
+        if
+            let popoverWindow = statusPopover.contentViewController?.view.window,
+            popoverWindow.frame.contains(screenPoint)
+        {
+            return true
+        }
+
+        return controlPanels.values.contains { panel in
+            panel.frame.contains(screenPoint)
+        }
+    }
+
     private func makeControlPanel(for display: LightViewModel) -> NSPanel {
         let contentSize = fittedControlPanelContentSize(for: display)
         let frame = controlPanelFrame(for: display, contentSize: contentSize, anchorOffsetFromRight: nil)
@@ -323,7 +403,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
         panel.standardWindowButton(.zoomButton)?.isHidden = true
 
-        let hostingView = NSHostingView(rootView: makeContentView(for: display))
+        let hostingView = ControlPanelHostingView(rootView: makeContentView(for: display))
         panel.contentView = hostingView
         panel.setFrame(frame, display: false)
         return panel
@@ -380,7 +460,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private func showPrimaryPopover(for display: LightViewModel) {
         guard let button = statusBarItem.button else { return }
 
-        let hostingController = NSHostingController(rootView: makeContentView(for: display))
+        let hostingView = ControlPanelHostingView(rootView: makeContentView(for: display))
+        let hostingController = NSViewController()
+        hostingController.view = hostingView
         statusPopover.contentViewController = hostingController
         statusPopover.contentSize = fittedControlPanelContentSize(for: display)
         logger.info("Showing primary popover for display=\(display.displayName, privacy: .public)")
@@ -412,10 +494,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         panel.contentView?.needsLayout = true
         panel.contentView?.layoutSubtreeIfNeeded()
 
-        let targetContentSize = fittedControlPanelContentSize(
-            for: display,
-            preferredMeasuredSize: panel.contentView?.fittingSize
-        )
+        let targetContentSize = fittedControlPanelContentSize(for: display)
         let targetFrame = controlPanelFrame(
             for: display,
             contentSize: targetContentSize,
@@ -445,19 +524,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         DispatchQueue.main.async(execute: workItem)
     }
 
-    private func fittedControlPanelContentSize(
-        for display: LightViewModel,
-        preferredMeasuredSize: CGSize? = nil
-    ) -> CGSize {
-        let candidateSize = preferredMeasuredSize ?? .zero
-        let measuredSize: CGSize
-
-        if candidateSize.width > 0.5 && candidateSize.height > 0.5 {
-            measuredSize = candidateSize
-        } else {
-            measuredSize = measuredContentSize(for: display)
-        }
-
+    private func fittedControlPanelContentSize(for display: LightViewModel) -> CGSize {
+        let measuredSize = measuredContentSize(for: display)
         return CGSize(
             width: max(320, measuredSize.width),
             height: max(280, measuredSize.height)
@@ -465,7 +533,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     private func measuredContentSize(for display: LightViewModel) -> CGSize {
-        let measuringView = NSHostingView(rootView: makeContentView(for: display))
+        let measuringView = ControlPanelHostingView(rootView: makeContentView(for: display))
         measuringView.frame = NSRect(x: 0, y: 0, width: 336, height: 10)
         measuringView.layoutSubtreeIfNeeded()
         return measuringView.fittingSize
@@ -498,6 +566,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
         lastAutomaticControlPanelCloseEventNumber = NSApp.currentEvent?.eventNumber
         cancelVisibleControlPanelRefresh()
+        removeControlPanelDismissMonitors()
         closeControlPanels()
         areControlPanelsVisible = false
         currentPrimaryDisplayID = nil

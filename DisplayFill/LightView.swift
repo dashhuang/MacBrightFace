@@ -14,6 +14,7 @@ final class LightViewModel: ObservableObject {
     @Published var isHDREnabled: Bool
     @Published var hasHDRDisplay: Bool
     @Published var maxHDRFactor: Double
+    @Published var currentHDRFactor: Double
     @Published var borderWidth: CGFloat
     @Published var effectMode: LightEffectMode
     @Published var primaryDirectionalLightAngle: Double
@@ -34,6 +35,7 @@ final class LightViewModel: ObservableObject {
         hasHDRDisplay: Bool,
         preferredHDREnabled: Bool,
         maxHDRFactor: Double,
+        currentHDRFactor: Double,
         borderWidth: CGFloat,
         effectMode: LightEffectMode,
         primaryDirectionalLightAngle: Double,
@@ -52,6 +54,7 @@ final class LightViewModel: ObservableObject {
         self.hasHDRDisplay = hasHDRDisplay
         self.preferredHDREnabled = preferredHDREnabled
         self.maxHDRFactor = maxHDRFactor
+        self.currentHDRFactor = currentHDRFactor
         self.borderWidth = borderWidth
         self.effectMode = effectMode
         self.primaryDirectionalLightAngle = primaryDirectionalLightAngle
@@ -176,15 +179,31 @@ struct LightView: View {
         model.isHDREnabled ? max(1.0, targetIntensity) : 1.0
     }
 
+    private var effectiveHDRFactor: Double {
+        guard model.isHDREnabled else { return 1.0 }
+
+        let potentialHeadroom = max(1.0, model.maxHDRFactor)
+        let currentHeadroom = max(1.0, model.currentHDRFactor)
+        guard currentHeadroom > 1.01 else {
+            return potentialHeadroom
+        }
+
+        return min(potentialHeadroom, currentHeadroom)
+    }
+
     private var hdrLowHeadroomCompensation: Double {
         guard model.isHDREnabled else { return 0.0 }
 
-        let headroom = max(1.0, model.maxHDRFactor)
+        let headroom = max(1.0, effectiveHDRFactor)
         return min(1.0, max(0.0, (8.0 - headroom) / 4.0))
     }
 
-    private var usesPointerCutout: Bool {
+    private var usesSwiftUIPointerCutout: Bool {
         !model.isHDREnabled || model.maxHDRFactor >= 8.0
+    }
+
+    private var usesMetalRenderer: Bool {
+        MetalLightView.shouldRenderOverlays
     }
 
     private var baseLightColorComponents: (red: Double, green: Double, blue: Double) {
@@ -223,7 +242,7 @@ struct LightView: View {
     }
 
     private var targetIntensity: Double {
-        let maxIntensity = model.isHDREnabled ? max(1.0, model.maxHDRFactor) : LightConfiguration.standardMaxBrightness
+        let maxIntensity = model.isHDREnabled ? effectiveHDRFactor : LightConfiguration.standardMaxBrightness
         let baseCurve = 0.18 + (curvedBrightness * 0.82)
         let headroomCompensation = model.isHDREnabled ? 1.0 + (hdrLowHeadroomCompensation * 0.24) : 1.0
         return maxIntensity * baseCurve * headroomCompensation
@@ -775,7 +794,7 @@ struct LightView: View {
             x: center.x + ((sourcePoint.x - center.x) * beamReach),
             y: center.y + ((sourcePoint.y - center.y) * beamReach)
         )
-        let ambientDiameter = maxDimension * (isKeyLight ? 0.82 : 0.60)
+        let ambientDiameter = maxDimension * (isKeyLight ? 0.62 : 0.42)
         let coreDiameter = maxDimension * (isKeyLight ? 0.52 : 0.36)
         let haloDiameter = maxDimension * (isKeyLight ? 0.30 : 0.20)
         let hotspotDiameter = maxDimension * (isKeyLight ? 0.22 : 0.14)
@@ -816,7 +835,7 @@ struct LightView: View {
                 : (isKeyLight ? 0.16 : 0.07) + (curvedBrightness * (isKeyLight ? 0.22 : 0.11) * brightnessScale)
         )
         let sourcePlateOpacity = min(1.0, 0.56 + (curvedBrightness * 0.44 * brightnessScale))
-        let hdrIntensityBoost = isKeyLight ? 1.12 : 1.0
+        let hdrIntensityBoost = isKeyLight ? LightConfiguration.professionalKeyHDRIntensityBoost : 1.0
         let intensity = model.isHDREnabled ? max(0.0, hdrColorIntensity * brightnessScale * hdrIntensityBoost) : 1.0
         let sourcePlateColor = blendedColorComponents(
             highlightLightColorComponents,
@@ -941,9 +960,9 @@ struct LightView: View {
         coreBloomRadius: CGFloat,
         outerBloomRadius: CGFloat
     ) -> some View {
-        let primaryEnergy = 1.0
-        let secondaryEnergy = 0.6
-        let ringBrightnessScale = 0.5 + (hdrLowHeadroomCompensation * 0.16)
+        let primaryEnergy = LightConfiguration.professionalPrimaryLightEnergy
+        let secondaryEnergy = LightConfiguration.professionalSecondaryLightEnergy
+        let ringBrightnessScale = LightConfiguration.professionalRingBrightnessScale
 
         ZStack {
             directionalStudioLight(
@@ -1076,7 +1095,7 @@ struct LightView: View {
                 min(geometry.size.width, geometry.size.height) * 0.18 + (ringThickness * 0.7)
             )
             let innerHighlightThickness = max(6.0, ringThickness * 0.72)
-            let cutoutCenter = usesPointerCutout ? localMouseLocation(in: geometry.size) : nil
+            let cutoutCenter = usesSwiftUIPointerCutout ? localMouseLocation(in: geometry.size) : nil
             let cutoutDiameter = LightConfiguration.pointerCutoutRadius * 2
             let cutoutBlur = LightConfiguration.pointerCutoutFeather
 
@@ -1134,7 +1153,11 @@ struct LightView: View {
 
     var body: some View {
         Group {
-            if model.effectMode.usesAnimatedTimeline {
+            if usesMetalRenderer {
+                MetalLightView(model: model)
+                    .background(Color.clear)
+                    .ignoresSafeArea()
+            } else if model.effectMode.usesAnimatedTimeline {
                 TimelineView(.periodic(from: .now, by: 1.0 / 24.0)) { context in
                     renderBody(at: context.date.timeIntervalSinceReferenceDate)
                 }
@@ -1160,6 +1183,7 @@ struct LightView: View {
             hasHDRDisplay: true,
             preferredHDREnabled: true,
             maxHDRFactor: 2.0,
+            currentHDRFactor: 2.0,
             borderWidth: 80.0,
             effectMode: .normal,
             primaryDirectionalLightAngle: LightConfiguration.defaultPrimaryDirectionalLightAngle,
