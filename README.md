@@ -1,8 +1,8 @@
 # DisplayFill
 
-DisplayFill transforms the edges of your display into a clean, adjustable fill light for video calls, streaming, and low-light work setups. Recent versions of macOS now include Apple's built-in [Edge Light](https://support.apple.com/125934) effect for video calls, but DisplayFill remains the better fit when you want more intensity, more control, and a result that truly benefits from HDR-capable displays.
+DisplayFill transforms the edges of your display into a clean, adjustable fill light for video calls, streaming, and low-light work setups. Compared with Apple's built-in [Edge Light](https://support.apple.com/125934), DisplayFill supports brighter HDR output, independent per-display switches and settings, adjustable directional edge-light angles, and more playful lighting effects.
 
-DisplayFill 是一个 macOS 菜单栏补光应用，通过点亮屏幕边缘来提供柔和且可控的人脸补光，适用于视频会议、直播以及低光环境下的工作场景。虽然较新的 macOS 版本已经开始提供系统自带的 [Edge Light](https://support.apple.com/125934) 视频补光效果，但如果你需要更强、更明显的补光表现，尤其是在支持 HDR 的显示器上，DisplayFill 依然是更合适的选择。
+DisplayFill 是一个在 Mac 上利用屏幕进行补光和打光的 App，通过点亮屏幕边缘来提供柔和且可控的人脸补光，适用于视频会议、直播以及低光环境下的工作场景。相比 macOS 系统自带的 [边缘光](https://support.apple.com/125934)，DisplayFill 支持 HDR 因而光线更亮，支持多显示器分别开关和设置，还支持可调光线角度的边缘光以及更多有趣特效。
 
 中文完整说明请见：[docs/README.zh-CN.md](./docs/README.zh-CN.md)。
 

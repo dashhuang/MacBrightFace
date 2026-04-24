@@ -908,7 +908,7 @@ struct LightView: View {
     ) -> some View {
         let primaryEnergy = 1.0
         let secondaryEnergy = 0.6
-        let ringBrightnessScale = 0.3
+        let ringBrightnessScale = 0.5
 
         ZStack {
             directionalStudioLight(
