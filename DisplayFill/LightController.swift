@@ -238,12 +238,14 @@ final class LightController: ObservableObject {
         refreshOverlayVisibility()
     }
 
-    func consumeInitialControlPanelPresentationIfNeeded() -> Bool {
-        guard shouldPresentInitialControlPanels else { return false }
+    var shouldPresentInitialControlPanelsOnLaunch: Bool {
+        shouldPresentInitialControlPanels
+    }
 
+    func markInitialControlPanelPresentationShown() {
+        guard shouldPresentInitialControlPanels else { return }
         shouldPresentInitialControlPanels = false
         userDefaults.set(true, forKey: DefaultsKey.initialControlPanelsShown)
-        return true
     }
 
     func toggleLight(for display: LightViewModel) {

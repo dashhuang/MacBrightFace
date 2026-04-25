@@ -14,6 +14,11 @@ private final class ControlPanelHostingView<Content: View>: NSHostingView<Conten
     }
 }
 
+private struct ControlPanelAnchor {
+    let display: LightViewModel
+    let offsetFromRight: CGFloat
+}
+
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private let logger = Logger(subsystem: "cn.huang.dash.DisplayFill", category: "ControlPanels")
@@ -164,49 +169,69 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         )
     }
 
-    private func showControlPanels() {
-        guard let primaryDisplay = primaryDisplayForCurrentInteraction() else { return }
-        let anchorOffsetFromRight = primaryDisplay.visibleFrame.maxX - NSEvent.mouseLocation.x
-        presentControlPanels(
-            primaryDisplayID: primaryDisplay.persistentID,
-            anchorOffsetFromRight: anchorOffsetFromRight,
+    @discardableResult
+    private func showControlPanels() -> Bool {
+        guard let anchor = controlPanelAnchorForCurrentInteraction() else { return false }
+        return presentControlPanels(
+            primaryDisplayID: anchor.display.persistentID,
+            anchorOffsetFromRight: anchor.offsetFromRight,
             refreshingPrimaryPopover: statusPopover.isShown
         )
     }
 
     private func presentInitialControlPanelsIfNeeded() {
-        guard lightController.consumeInitialControlPanelPresentationIfNeeded() else { return }
+        guard lightController.shouldPresentInitialControlPanelsOnLaunch else { return }
 
-        DispatchQueue.main.async { [weak self] in
-            self?.showControlPanels()
+        presentInitialControlPanelsIfNeeded(remainingAttempts: 3)
+    }
+
+    private func presentInitialControlPanelsIfNeeded(remainingAttempts: Int) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+            guard let self else { return }
+            guard self.lightController.shouldPresentInitialControlPanelsOnLaunch else { return }
+
+            if self.showInitialControlPanels() {
+                self.lightController.markInitialControlPanelPresentationShown()
+            } else if remainingAttempts > 0 {
+                self.presentInitialControlPanelsIfNeeded(remainingAttempts: remainingAttempts - 1)
+            }
         }
     }
 
-    private func refreshVisibleControlPanels() {
-        let primaryDisplayID = currentPrimaryDisplayID ?? primaryDisplayForCurrentInteraction()?.persistentID
-        presentControlPanels(
-            primaryDisplayID: primaryDisplayID,
-            anchorOffsetFromRight: currentAnchorOffsetFromRight,
+    @discardableResult
+    private func showInitialControlPanels() -> Bool {
+        guard let anchor = statusItemControlPanelAnchor() else { return false }
+
+        return presentControlPanels(
+            primaryDisplayID: anchor.display.persistentID,
+            anchorOffsetFromRight: anchor.offsetFromRight,
             refreshingPrimaryPopover: statusPopover.isShown
         )
     }
 
+    private func refreshVisibleControlPanels() {
+        let fallbackAnchor = controlPanelAnchorForCurrentInteraction()
+        let primaryDisplayID = currentPrimaryDisplayID ?? fallbackAnchor?.display.persistentID
+        _ = presentControlPanels(
+            primaryDisplayID: primaryDisplayID,
+            anchorOffsetFromRight: currentAnchorOffsetFromRight ?? fallbackAnchor?.offsetFromRight,
+            refreshingPrimaryPopover: statusPopover.isShown
+        )
+    }
+
+    @discardableResult
     private func presentControlPanels(
         primaryDisplayID: String?,
         anchorOffsetFromRight: CGFloat?,
         refreshingPrimaryPopover: Bool
-    ) {
-        guard !isRefreshingVisibleControlPanels else { return }
-        guard !lightController.displays.isEmpty else { return }
+    ) -> Bool {
+        guard !isRefreshingVisibleControlPanels else { return false }
+        guard !lightController.displays.isEmpty else { return false }
 
-        guard let resolvedPrimaryDisplay = resolvedPrimaryDisplay(for: primaryDisplayID) else { return }
+        guard let resolvedPrimaryDisplay = resolvedPrimaryDisplay(for: primaryDisplayID) else { return false }
         let resolvedAnchorOffset = anchorOffsetFromRight
             ?? (resolvedPrimaryDisplay.visibleFrame.maxX - NSEvent.mouseLocation.x)
 
-        currentPrimaryDisplayID = resolvedPrimaryDisplay.persistentID
-        currentAnchorOffsetFromRight = resolvedAnchorOffset
-        areControlPanelsVisible = true
-        installControlPanelDismissMonitors()
         NSApp.activate(ignoringOtherApps: true)
 
         if refreshingPrimaryPopover {
@@ -217,17 +242,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 guard let self else { return }
                 self.isRefreshingVisibleControlPanels = false
                 guard self.areControlPanelsVisible else { return }
-                self.presentControlPanels(
+                let didPresent = self.presentControlPanels(
                     primaryDisplayID: resolvedPrimaryDisplay.persistentID,
                     anchorOffsetFromRight: resolvedAnchorOffset,
                     refreshingPrimaryPopover: false
                 )
+                if !didPresent {
+                    self.removeControlPanelDismissMonitors()
+                    self.resetControlPanelPresentationState()
+                }
             }
-            return
+            return false
         }
 
         closeControlPanels()
-        showPrimaryPopover(for: resolvedPrimaryDisplay)
+        guard showPrimaryPopover(for: resolvedPrimaryDisplay) else {
+            removeControlPanelDismissMonitors()
+            resetControlPanelPresentationState()
+            return false
+        }
+
+        currentPrimaryDisplayID = resolvedPrimaryDisplay.persistentID
+        currentAnchorOffsetFromRight = resolvedAnchorOffset
+        areControlPanelsVisible = true
+        installControlPanelDismissMonitors()
         logger.info(
             "Primary display=\(resolvedPrimaryDisplay.displayName, privacy: .public) mouse=\(NSStringFromPoint(NSEvent.mouseLocation), privacy: .public) offsetFromRight=\(resolvedAnchorOffset)"
         )
@@ -250,6 +288,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 self.logger.info("Did show panel display=\(display.displayName, privacy: .public) actualScreen=\(actualScreenName, privacy: .public) actualFrame=\(NSStringFromRect(panel.frame), privacy: .public)")
             }
         }
+
+        return true
     }
 
     private func hideControlPanels() {
@@ -257,6 +297,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         removeControlPanelDismissMonitors()
         closeControlPanels()
         closePrimaryPopoverProgrammatically()
+        resetControlPanelPresentationState()
+    }
+
+    private func resetControlPanelPresentationState() {
         areControlPanelsVisible = false
         currentPrimaryDisplayID = nil
         currentAnchorOffsetFromRight = nil
@@ -444,21 +488,58 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         )
     }
 
-    private func primaryDisplayForCurrentInteraction() -> LightViewModel? {
+    private func controlPanelAnchorForCurrentInteraction() -> ControlPanelAnchor? {
         let mouseLocation = NSEvent.mouseLocation
+        if let display = lightController.displays.first(where: {
+            $0.visibleFrame.contains(mouseLocation) || $0.screenFrame.contains(mouseLocation)
+        }) {
+            return ControlPanelAnchor(
+                display: display,
+                offsetFromRight: display.visibleFrame.maxX - mouseLocation.x
+            )
+        }
 
-        if let display = lightController.displays.first(where: { $0.visibleFrame.contains(mouseLocation) || $0.screenFrame.contains(mouseLocation) }) {
+        if let statusItemAnchor = statusItemControlPanelAnchor() {
+            return statusItemAnchor
+        }
+
+        let display = lightController.displays.first
+        guard let display else { return nil }
+
+        return ControlPanelAnchor(
+            display: display,
+            offsetFromRight: display.visibleFrame.width / 2
+        )
+    }
+
+    private func statusItemControlPanelAnchor() -> ControlPanelAnchor? {
+        guard let button = statusBarItem.button, let window = button.window else {
+            return nil
+        }
+
+        let buttonFrame = window.convertToScreen(button.bounds)
+        guard let display = displayForStatusItemWindow(window, buttonFrame: buttonFrame) else {
+            return nil
+        }
+
+        return ControlPanelAnchor(
+            display: display,
+            offsetFromRight: display.visibleFrame.maxX - buttonFrame.midX
+        )
+    }
+
+    private func displayForStatusItemWindow(_ window: NSWindow, buttonFrame: NSRect) -> LightViewModel? {
+        if
+            let displayID = window.screen?.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID,
+            let display = lightController.displays.first(where: { $0.displayID == displayID })
+        {
             return display
         }
 
-        guard
-            let buttonScreen = statusBarItem.button?.window?.screen,
-            let displayID = buttonScreen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID
-        else {
-            return lightController.displays.first
-        }
-
-        return lightController.displays.first(where: { $0.displayID == displayID }) ?? lightController.displays.first
+        let buttonCenter = CGPoint(x: buttonFrame.midX, y: buttonFrame.midY)
+        return lightController.displays.first {
+            $0.visibleFrame.contains(buttonCenter) || $0.screenFrame.contains(buttonCenter)
+        } ?? lightController.displays.first
     }
 
     private func resolvedPrimaryDisplay(for persistentID: String?) -> LightViewModel? {
@@ -466,11 +547,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             return display
         }
 
-        return primaryDisplayForCurrentInteraction()
+        return controlPanelAnchorForCurrentInteraction()?.display
     }
 
-    private func showPrimaryPopover(for display: LightViewModel) {
-        guard let button = statusBarItem.button else { return }
+    @discardableResult
+    private func showPrimaryPopover(for display: LightViewModel) -> Bool {
+        guard let button = statusBarItem.button else { return false }
 
         let hostingView = ControlPanelHostingView(rootView: makeContentView(for: display))
         let hostingController = NSViewController()
@@ -479,6 +561,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         statusPopover.contentSize = fittedControlPanelContentSize(for: display)
         logger.info("Showing primary popover for display=\(display.displayName, privacy: .public)")
         statusPopover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        return statusPopover.isShown
     }
 
     private func refreshPrimaryPopoverIfNeeded(for display: LightViewModel) {
@@ -494,8 +577,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             self.isRefreshingVisibleControlPanels = false
-            self.showPrimaryPopover(for: display)
-            self.areControlPanelsVisible = true
+            if self.showPrimaryPopover(for: display) {
+                self.areControlPanelsVisible = true
+            } else {
+                self.removeControlPanelDismissMonitors()
+                self.closeControlPanels()
+                self.resetControlPanelPresentationState()
+            }
         }
     }
 
@@ -580,9 +668,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         cancelVisibleControlPanelRefresh()
         removeControlPanelDismissMonitors()
         closeControlPanels()
-        areControlPanelsVisible = false
-        currentPrimaryDisplayID = nil
-        currentAnchorOffsetFromRight = nil
+        resetControlPanelPresentationState()
     }
 
     func popoverShouldClose(_ popover: NSPopover) -> Bool {

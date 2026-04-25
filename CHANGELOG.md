@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 1.0.4
+
+### Fixed
+
+- Made first-launch control panels mark as shown only after successful presentation
+- Matched the status-bar popover content to the screen that owns the menu bar item
+- Reset control-panel state when popover presentation fails during refresh
+
+## 1.0.3
+
 ### Added
 
 - Direct distribution release scripts and notarization documentation
