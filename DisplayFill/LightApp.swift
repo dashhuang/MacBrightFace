@@ -42,6 +42,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         lightController.completeLaunch()
         if ProcessInfo.processInfo.arguments.contains("--debug-show-control-panels") {
             showControlPanels()
+        } else {
+            presentInitialControlPanelsIfNeeded()
         }
     }
 
@@ -170,6 +172,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             anchorOffsetFromRight: anchorOffsetFromRight,
             refreshingPrimaryPopover: statusPopover.isShown
         )
+    }
+
+    private func presentInitialControlPanelsIfNeeded() {
+        guard lightController.consumeInitialControlPanelPresentationIfNeeded() else { return }
+
+        DispatchQueue.main.async { [weak self] in
+            self?.showControlPanels()
+        }
     }
 
     private func refreshVisibleControlPanels() {

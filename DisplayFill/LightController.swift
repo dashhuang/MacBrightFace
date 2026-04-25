@@ -8,6 +8,7 @@ final class LightController: ObservableObject {
     private let logger = Logger(subsystem: "cn.huang.dash.DisplayFill", category: "Overlays")
     private enum DefaultsKey {
         static let displaySettings = "cn.huang.dash.DisplayFill.displaySettings"
+        static let initialControlPanelsShown = "cn.huang.dash.DisplayFill.initialControlPanelsShown"
         static let legacyIsOn = "cn.huang.dash.DisplayFill.isOn"
         static let legacyBrightness = "cn.huang.dash.DisplayFill.brightness"
         static let legacyColorTemperature = "cn.huang.dash.DisplayFill.colorTemperature"
@@ -200,8 +201,10 @@ final class LightController: ObservableObject {
     private let oldUserDefaults = UserDefaults(suiteName: OldDefaultsKey.suiteName)
     private var persistedDisplaySettings: [String: PersistedDisplaySettings] = [:]
     private var hasCompletedLaunch = false
+    private var shouldPresentInitialControlPanels = false
 
     init() {
+        shouldPresentInitialControlPanels = shouldShowInitialControlPanelsForFreshConfiguration()
         migrateDefaultsFromPreviousBundleIdentifierIfNeeded()
         persistedDisplaySettings = loadPersistedDisplaySettings()
         lastScreenLayout = captureScreenLayout()
@@ -233,6 +236,14 @@ final class LightController: ObservableObject {
         hasCompletedLaunch = true
         rebuildDisplayContexts()
         refreshOverlayVisibility()
+    }
+
+    func consumeInitialControlPanelPresentationIfNeeded() -> Bool {
+        guard shouldPresentInitialControlPanels else { return false }
+
+        shouldPresentInitialControlPanels = false
+        userDefaults.set(true, forKey: DefaultsKey.initialControlPanelsShown)
+        return true
     }
 
     func toggleLight(for display: LightViewModel) {
@@ -701,6 +712,44 @@ final class LightController: ObservableObject {
         }
 
         return result
+    }
+
+    private func shouldShowInitialControlPanelsForFreshConfiguration() -> Bool {
+        guard userDefaults.object(forKey: DefaultsKey.initialControlPanelsShown) == nil else {
+            return false
+        }
+
+        return !hasAnyStoredLightConfiguration()
+    }
+
+    private func hasAnyStoredLightConfiguration() -> Bool {
+        let currentKeys = [
+            DefaultsKey.displaySettings,
+            DefaultsKey.legacyIsOn,
+            DefaultsKey.legacyBrightness,
+            DefaultsKey.legacyColorTemperature,
+            DefaultsKey.legacyHDRPreference,
+            DefaultsKey.legacyBorderWidth,
+            DefaultsKey.legacyEffectMode,
+            DefaultsKey.legacyPrimaryDirectionalLightAngle,
+            DefaultsKey.legacySecondaryDirectionalLightAngle
+        ]
+        if currentKeys.contains(where: { userDefaults.object(forKey: $0) != nil }) {
+            return true
+        }
+
+        let oldKeys = [
+            OldDefaultsKey.displaySettings,
+            OldDefaultsKey.legacyIsOn,
+            OldDefaultsKey.legacyBrightness,
+            OldDefaultsKey.legacyColorTemperature,
+            OldDefaultsKey.legacyHDRPreference,
+            OldDefaultsKey.legacyBorderWidth,
+            OldDefaultsKey.legacyEffectMode,
+            OldDefaultsKey.legacyPrimaryDirectionalLightAngle,
+            OldDefaultsKey.legacySecondaryDirectionalLightAngle
+        ]
+        return oldKeys.contains { oldUserDefaults?.object(forKey: $0) != nil }
     }
 
     private func legacyDisplaySettings() -> PersistedDisplaySettings {
