@@ -6,6 +6,8 @@ DisplayFill transforms the edges of your display into a clean, adjustable fill l
 
 DisplayFill 是一个在 Mac 上利用屏幕进行补光和打光的 App，通过点亮屏幕边缘来提供柔和且可控的人脸补光，适用于视频会议、直播以及低光环境下的工作场景。相比 macOS 系统自带的 [边缘光](https://support.apple.com/125934)，DisplayFill 支持 HDR 因而光线更亮，支持多显示器分别开关和设置，还支持可调光线角度的边缘光以及更多有趣特效。
 
+[下载 DisplayFill 1.0.3 for macOS](https://github.com/dashhuang/DisplayFill/releases/download/v1.0.3/DisplayFill-1.0.3-4-macOS.zip)。这个直装版本已经使用 Developer ID 签名，并通过 Apple 公证。旧版本可在 [GitHub Releases](https://github.com/dashhuang/DisplayFill/releases) 页面查看。
+
 中文完整说明请见：[docs/README.zh-CN.md](./docs/README.zh-CN.md)。
 
 ## Why Use DisplayFill
