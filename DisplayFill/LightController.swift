@@ -495,7 +495,7 @@ final class LightController: ObservableObject {
         window.ignoresMouseEvents = true
         window.isMovableByWindowBackground = false
         window.level = .mainMenu
-        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
+        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
         applyEDRState(to: hostingView, isHDREnabled: context.model.isHDREnabled)
         window.setFrame(descriptor.frame, display: false)
         window.orderOut(nil)
