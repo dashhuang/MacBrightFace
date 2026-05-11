@@ -20,7 +20,14 @@ final class LightViewModel: ObservableObject {
     @Published var primaryDirectionalLightAngle: Double
     @Published var secondaryDirectionalLightAngle: Double
     @Published var mouseLocation: CGPoint?
+    @Published var isCameraAutomationEnabled: Bool
+    @Published var isCameraAutomationActive: Bool
+    @Published var isPointerRefreshActive: Bool
     var preferredHDREnabled: Bool
+
+    var isEffectivelyOn: Bool {
+        isOn || isCameraAutomationActive
+    }
 
     init(
         persistentID: String,
@@ -40,7 +47,10 @@ final class LightViewModel: ObservableObject {
         effectMode: LightEffectMode,
         primaryDirectionalLightAngle: Double,
         secondaryDirectionalLightAngle: Double,
-        mouseLocation: CGPoint? = nil
+        mouseLocation: CGPoint? = nil,
+        isCameraAutomationEnabled: Bool = false,
+        isCameraAutomationActive: Bool = false,
+        isPointerRefreshActive: Bool = false
     ) {
         self.persistentID = persistentID
         self.displayID = displayID
@@ -60,6 +70,9 @@ final class LightViewModel: ObservableObject {
         self.primaryDirectionalLightAngle = primaryDirectionalLightAngle
         self.secondaryDirectionalLightAngle = secondaryDirectionalLightAngle
         self.mouseLocation = mouseLocation
+        self.isCameraAutomationEnabled = isCameraAutomationEnabled
+        self.isCameraAutomationActive = isCameraAutomationActive
+        self.isPointerRefreshActive = isPointerRefreshActive
     }
 
     func updateMouseLocation(_ mouseLocation: CGPoint?) {
@@ -198,6 +211,20 @@ struct LightView: View {
         return min(1.0, max(0.0, (8.0 - headroom) / 4.0))
     }
 
+    private var hdrLowBrightnessOpacityScale: Double {
+        model.isHDREnabled ? 0.88 + (curvedBrightness * 0.12) : 1.0
+    }
+
+    private var hdrEffectOpacityScale: Double {
+        guard model.isHDREnabled else { return 1.0 }
+        return 0.16 + (pow(clampedBrightness, 0.72) * 0.56)
+    }
+
+    private var hdrEffectIntensityScale: Double {
+        guard model.isHDREnabled else { return 1.0 }
+        return 0.70 + (pow(clampedBrightness, 0.90) * 0.10)
+    }
+
     private var pointerCutoutSoftness: Double {
         let brightnessSoftness = curvedBrightness
         let hdrSoftness: Double
@@ -259,7 +286,9 @@ struct LightView: View {
 
     private var targetIntensity: Double {
         let maxIntensity = model.isHDREnabled ? effectiveHDRFactor : LightConfiguration.standardMaxBrightness
-        let baseCurve = 0.18 + (curvedBrightness * 0.82)
+        let baseCurve = model.isHDREnabled
+            ? 0.15 + (curvedBrightness * 0.85)
+            : 0.18 + (curvedBrightness * 0.82)
         let headroomCompensation = model.isHDREnabled ? 1.0 + (hdrLowHeadroomCompensation * 0.24) : 1.0
         return maxIntensity * baseCurve * headroomCompensation
     }
@@ -268,10 +297,10 @@ struct LightView: View {
         if model.isHDREnabled {
             return min(
                 1.0,
-                0.20
+                0.18
                     + (curvedBrightness * (0.24 + (hdrLowHeadroomCompensation * 0.36)))
                     + (temperatureStrength * 0.06)
-            )
+            ) * hdrLowBrightnessOpacityScale
         }
 
         return min(1.0, 0.24 + (curvedBrightness * 0.76))
@@ -281,10 +310,10 @@ struct LightView: View {
         if model.isHDREnabled {
             return min(
                 1.0,
-                0.10
+                0.08
                     + (curvedBrightness * (0.14 + (hdrLowHeadroomCompensation * 0.12)))
                     + (temperatureStrength * 0.04)
-            )
+            ) * hdrLowBrightnessOpacityScale
         }
 
         return min(1.0, 0.08 + (curvedBrightness * 0.28) + (targetIntensity * 0.10))
@@ -294,10 +323,10 @@ struct LightView: View {
         if model.isHDREnabled {
             return min(
                 1.0,
-                0.10
+                0.08
                     + (curvedBrightness * (0.18 + (hdrLowHeadroomCompensation * 0.14)))
                     + (temperatureStrength * 0.05)
-            )
+            ) * hdrLowBrightnessOpacityScale
         }
 
         return min(1.0, 0.06 + (curvedBrightness * 0.22))
@@ -720,10 +749,10 @@ struct LightView: View {
         let hdrBloomOpacity = min(
             1.0,
             (
-                0.10
+                0.08
                     + (curvedBrightness * (0.16 + (hdrLowHeadroomCompensation * 0.12)))
                     + (temperatureStrength * 0.06)
-            ) * clampedBrightnessScale
+            ) * hdrLowBrightnessOpacityScale * clampedBrightnessScale
         )
         let baseLayerOpacity = baseOpacity * clampedBrightnessScale
         let highlightLayerOpacity = highlightOpacity * clampedBrightnessScale
@@ -820,36 +849,37 @@ struct LightView: View {
         let sizeScale = isKeyLight ? 0.5 : 1.0
         let sourceSpreadScale = isSDRKeyLight ? 0.68 : 1.0
         let beamScale = isSDRKeyLight ? 0.32 : (isKeyLight ? 0.44 : 0.40)
+        let hdrOpacityScale = model.isHDREnabled ? hdrLowBrightnessOpacityScale : 1.0
         let ambientOpacity = min(
             1.0,
             isSDRKeyLight
                 ? 0.34 + (curvedBrightness * 0.30 * brightnessScale)
                 : (isKeyLight ? 0.20 : 0.10) + (curvedBrightness * (isKeyLight ? 0.32 : 0.18) * brightnessScale)
-        )
+        ) * hdrOpacityScale
         let coreOpacity = min(
             1.0,
             isSDRKeyLight
                 ? 0.52 + (curvedBrightness * 0.28 * brightnessScale)
                 : (isKeyLight ? 0.28 : 0.12) + (curvedBrightness * (isKeyLight ? 0.36 : 0.20) * brightnessScale)
-        )
+        ) * hdrOpacityScale
         let haloOpacity = min(
             1.0,
             isSDRKeyLight
                 ? 0.28 + (curvedBrightness * 0.22 * brightnessScale)
                 : (isKeyLight ? 0.16 : 0.08) + (curvedBrightness * (isKeyLight ? 0.22 : 0.12) * brightnessScale)
-        )
+        ) * hdrOpacityScale
         let hotspotOpacity = min(
             1.0,
             isSDRKeyLight
                 ? 0.74 + (curvedBrightness * 0.22 * brightnessScale)
                 : (isKeyLight ? 0.30 : 0.12) + (curvedBrightness * (isKeyLight ? 0.28 : 0.10) * brightnessScale)
-        )
+        ) * hdrOpacityScale
         let beamOpacity = min(
             1.0,
             isSDRKeyLight
                 ? 0.14 + (curvedBrightness * 0.10 * brightnessScale)
                 : (isKeyLight ? 0.16 : 0.07) + (curvedBrightness * (isKeyLight ? 0.22 : 0.11) * brightnessScale)
-        )
+        ) * hdrOpacityScale
         let sourcePlateOpacity = min(1.0, 0.56 + (curvedBrightness * 0.44 * brightnessScale))
         let hdrIntensityBoost = isKeyLight ? LightConfiguration.professionalKeyHDRIntensityBoost : 1.0
         let intensity = model.isHDREnabled ? max(0.0, hdrColorIntensity * brightnessScale * hdrIntensityBoost) : 1.0
@@ -1023,14 +1053,22 @@ struct LightView: View {
             state.trailingColor,
             amount: state.trailingPower / max(0.001, state.leadingPower + state.trailingPower)
         )
-        let overallOpacity = min(1.0, (0.06 + (curvedBrightness * 0.14)) + state.ambientPower)
-        let leadingBaseOpacity = min(1.0, (0.08 + (curvedBrightness * 0.18)) + (state.leadingPower * 0.60))
-        let trailingBaseOpacity = min(1.0, (0.08 + (curvedBrightness * 0.18)) + (state.trailingPower * 0.60))
-        let leadingHighlightOpacity = min(1.0, (0.04 + (curvedBrightness * 0.12)) + (state.leadingPower * 0.54))
-        let trailingHighlightOpacity = min(1.0, (0.04 + (curvedBrightness * 0.12)) + (state.trailingPower * 0.54))
-        let leadingIntensity = model.isHDREnabled ? max(1.0, hdrColorIntensity * (0.52 + (state.leadingPower * 0.92))) : 1.0
-        let trailingIntensity = model.isHDREnabled ? max(1.0, hdrColorIntensity * (0.52 + (state.trailingPower * 0.92))) : 1.0
-        let overallIntensity = model.isHDREnabled ? max(1.0, hdrColorIntensity * (0.42 + (state.ambientPower * 0.80))) : 1.0
+        let effectOpacityScale = hdrEffectOpacityScale
+        let effectIntensityScale = hdrEffectIntensityScale
+        let overallOpacity = min(1.0, (0.06 + (curvedBrightness * 0.14)) + state.ambientPower) * effectOpacityScale
+        let leadingBaseOpacity = min(1.0, (0.08 + (curvedBrightness * 0.18)) + (state.leadingPower * 0.60)) * effectOpacityScale
+        let trailingBaseOpacity = min(1.0, (0.08 + (curvedBrightness * 0.18)) + (state.trailingPower * 0.60)) * effectOpacityScale
+        let leadingHighlightOpacity = min(1.0, (0.04 + (curvedBrightness * 0.12)) + (state.leadingPower * 0.54)) * effectOpacityScale
+        let trailingHighlightOpacity = min(1.0, (0.04 + (curvedBrightness * 0.12)) + (state.trailingPower * 0.54)) * effectOpacityScale
+        let leadingIntensity = model.isHDREnabled
+            ? max(1.0, hdrColorIntensity * effectIntensityScale * (0.52 + (state.leadingPower * 0.92)))
+            : 1.0
+        let trailingIntensity = model.isHDREnabled
+            ? max(1.0, hdrColorIntensity * effectIntensityScale * (0.52 + (state.trailingPower * 0.92)))
+            : 1.0
+        let overallIntensity = model.isHDREnabled
+            ? max(1.0, hdrColorIntensity * effectIntensityScale * (0.42 + (state.ambientPower * 0.80)))
+            : 1.0
 
         ZStack {
             LightRingShape(thickness: ringThickness * 1.08, cornerRadius: cornerRadius)
@@ -1092,8 +1130,8 @@ struct LightView: View {
                     cornerRadius: cornerRadius,
                     leadingColor: state.leadingColor,
                     trailingColor: state.trailingColor,
-                    leadingOpacity: min(1.0, 0.06 + (state.leadingPower * 0.42)),
-                    trailingOpacity: min(1.0, 0.06 + (state.trailingPower * 0.42)),
+                    leadingOpacity: min(1.0, 0.06 + (state.leadingPower * 0.42)) * effectOpacityScale,
+                    trailingOpacity: min(1.0, 0.06 + (state.trailingPower * 0.42)) * effectOpacityScale,
                     leadingIntensity: max(1.0, leadingIntensity * 1.16),
                     trailingIntensity: max(1.0, trailingIntensity * 1.16),
                     blurRadius: outerBloomRadius * 1.16

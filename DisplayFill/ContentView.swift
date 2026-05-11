@@ -28,6 +28,27 @@ struct ContentView: View {
         )
     }
 
+    private var cameraAutomationBinding: Binding<Bool> {
+        Binding(
+            get: { display.isCameraAutomationEnabled },
+            set: { lightController.setCameraAutomationEnabled($0, for: display) }
+        )
+    }
+
+    private var launchAtLoginBinding: Binding<Bool> {
+        Binding(
+            get: { lightController.isLaunchAtLoginEnabled },
+            set: { lightController.setLaunchAtLoginEnabled($0) }
+        )
+    }
+
+    private var hdrBinding: Binding<Bool> {
+        Binding(
+            get: { display.isHDREnabled },
+            set: { lightController.setHDRMode($0, for: display) }
+        )
+    }
+
     private var primaryDirectionalLightAngleBinding: Binding<Double> {
         Binding(
             get: { display.primaryDirectionalLightAngle },
@@ -42,28 +63,12 @@ struct ContentView: View {
         )
     }
 
-    private var hdrLabel: String {
-        if !display.hasHDRDisplay {
-            return "HDR_MODE_UNAVAILABLE".localized
-        }
-
-        return (display.isHDREnabled ? "HDR_MODE_ON" : "HDR_MODE_OFF").localized
-    }
-
-    private var hdrButtonLabel: String {
-        guard display.hasHDRDisplay else {
-            return "HDR_BUTTON_UNAVAILABLE".localized
-        }
-
-        return display.isHDREnabled ? "COMMON_DISABLE".localized : "COMMON_ENABLE".localized
-    }
-
     private var effectModeValueLabel: String {
         display.effectMode.localizedTitle
     }
 
     private var lightStatusLabel: String {
-        display.isOn ? "TOGGLE_LIGHT_OFF".localized : "TOGGLE_LIGHT_ON".localized
+        display.isEffectivelyOn ? "TOGGLE_LIGHT_OFF".localized : "TOGGLE_LIGHT_ON".localized
     }
 
     private var brightnessValueLabel: String {
@@ -108,12 +113,12 @@ struct ContentView: View {
                 HStack(alignment: .center, spacing: 12) {
                     ZStack {
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(display.isOn ? palette.headerActiveIconBackground : palette.headerInactiveIconBackground)
+                            .fill(display.isEffectivelyOn ? palette.headerActiveIconBackground : palette.headerInactiveIconBackground)
                             .frame(width: 42, height: 42)
 
-                        Image(systemName: display.isOn ? "lightbulb.fill" : "lightbulb")
+                        Image(systemName: display.isEffectivelyOn ? "lightbulb.fill" : "lightbulb")
                             .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(display.isOn ? palette.headerActiveIconForeground : .secondary)
+                            .foregroundStyle(display.isEffectivelyOn ? palette.headerActiveIconForeground : .secondary)
                     }
 
                     VStack(alignment: .leading, spacing: 2) {
@@ -126,7 +131,7 @@ struct ContentView: View {
 
                     Spacer()
 
-                    Button(display.isOn ? "COMMON_DISABLE".localized : "COMMON_ENABLE".localized) {
+                    Button(display.isEffectivelyOn ? "COMMON_DISABLE".localized : "COMMON_ENABLE".localized) {
                         lightController.toggleLight(for: display)
                     }
                     .buttonStyle(.borderedProminent)
@@ -225,33 +230,10 @@ struct ContentView: View {
                     directionalLightAnglesCard
                 }
 
-                HStack(alignment: .center, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("HDR")
-                            .font(.system(size: 13, weight: .semibold))
-                        Text(hdrLabel)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Spacer()
-
-                    Button(hdrButtonLabel) {
-                        lightController.toggleHDRMode(for: display)
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .disabled(!display.hasHDRDisplay)
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
-                .background(cardBackground)
-
                 Divider()
 
                 HStack {
-                    Button("ABOUT_LIGHT".localized, action: showAbout)
-                        .buttonStyle(.plain)
+                    optionsMenu
                     Spacer()
                     Button("QUIT".localized, action: quitApp)
                         .buttonStyle(.plain)
@@ -311,6 +293,40 @@ struct ContentView: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .background(cardBackground)
+    }
+
+    private var optionsMenu: some View {
+        Menu {
+            Toggle(isOn: hdrBinding) {
+                Label("HDR", systemImage: "sparkles.tv")
+            }
+            .disabled(!display.hasHDRDisplay)
+
+            Divider()
+
+            Toggle(isOn: cameraAutomationBinding) {
+                Label(
+                    "CAMERA_AUTOMATION_TITLE".localized,
+                    systemImage: lightController.isCameraInUse ? "video.fill" : "video"
+                )
+            }
+
+            Toggle(isOn: launchAtLoginBinding) {
+                Label("LAUNCH_AT_LOGIN_TITLE".localized, systemImage: "power")
+            }
+
+            Divider()
+
+            Button(action: showAbout) {
+                Label("ABOUT_LIGHT".localized, systemImage: "info.circle")
+            }
+        } label: {
+            Label("OPTIONS_MENU".localized, systemImage: "ellipsis.circle")
+                .labelStyle(.titleAndIcon)
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .buttonStyle(.plain)
     }
 
     private var directionalLightAnglesCard: some View {

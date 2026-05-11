@@ -59,10 +59,9 @@ struct MetalLightView: NSViewRepresentable {
 
     @MainActor
     private func configureFrameTiming(for view: MTKView, model: LightViewModel) {
-        let hasActivePointer = model.mouseLocation.map { model.screenFrame.contains($0) } ?? false
-        let needsContinuousRedraw = model.effectMode.usesAnimatedTimeline || hasActivePointer
+        let needsContinuousRedraw = model.effectMode.usesAnimatedTimeline || model.isPointerRefreshActive
 
-        view.preferredFramesPerSecond = hasActivePointer ? 60 : (model.effectMode.usesAnimatedTimeline ? 24 : 30)
+        view.preferredFramesPerSecond = model.isPointerRefreshActive ? 60 : (model.effectMode.usesAnimatedTimeline ? 24 : 30)
         view.enableSetNeedsDisplay = !needsContinuousRedraw
         view.isPaused = !needsContinuousRedraw
     }

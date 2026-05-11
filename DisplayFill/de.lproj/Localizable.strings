@@ -18,6 +18,7 @@
 "HDR_BUTTON_UNAVAILABLE" = "Nicht unterstützt";
 "COMMON_ENABLE" = "Ein";
 "COMMON_DISABLE" = "Aus";
+"OPTIONS_MENU" = "Optionen";
 "ABOUT_LIGHT" = "Über DisplayFill";
 "QUIT" = "Beenden";
 
@@ -37,3 +38,9 @@
 "PRO_DIRECTIONAL_LIGHT_ANGLES" = "Lichtwinkel";
 "PRO_DIRECTIONAL_LIGHT_PRIMARY" = "Hauptlicht";
 "PRO_DIRECTIONAL_LIGHT_SECONDARY" = "Fülllicht";
+"CAMERA_AUTOMATION_TITLE" = "Kamera-Automatik";
+"CAMERA_AUTOMATION_SUBTITLE_OFF" = "Einschalten, wenn eine andere App die Kamera startet";
+"CAMERA_AUTOMATION_SUBTITLE_ON" = "Kameraaktivität wird überwacht";
+"CAMERA_AUTOMATION_SUBTITLE_ACTIVE" = "Kamera ist aktiv";
+"LAUNCH_AT_LOGIN_TITLE" = "Beim Anmelden starten";
+"LAUNCH_AT_LOGIN_SUBTITLE" = "Beim Anmelden automatisch starten";

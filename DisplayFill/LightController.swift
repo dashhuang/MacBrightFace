@@ -1,6 +1,7 @@
 import AppKit
 import ColorSync
 import OSLog
+import ServiceManagement
 import SwiftUI
 
 @MainActor
@@ -17,6 +18,7 @@ final class LightController: ObservableObject {
         static let legacyEffectMode = "cn.huang.dash.DisplayFill.effectMode"
         static let legacyPrimaryDirectionalLightAngle = "cn.huang.dash.DisplayFill.primaryDirectionalLightAngle"
         static let legacySecondaryDirectionalLightAngle = "cn.huang.dash.DisplayFill.secondaryDirectionalLightAngle"
+        static let cameraAutomationEnabled = "cn.huang.dash.DisplayFill.cameraAutomationEnabled"
     }
 
     private enum OldDefaultsKey {
@@ -41,6 +43,7 @@ final class LightController: ObservableObject {
         var effectMode: LightEffectMode
         var primaryDirectionalLightAngle: Double
         var secondaryDirectionalLightAngle: Double
+        var cameraAutomationEnabled: Bool
 
         init(
             isOn: Bool,
@@ -50,7 +53,8 @@ final class LightController: ObservableObject {
             borderWidth: CGFloat,
             effectMode: LightEffectMode,
             primaryDirectionalLightAngle: Double,
-            secondaryDirectionalLightAngle: Double
+            secondaryDirectionalLightAngle: Double,
+            cameraAutomationEnabled: Bool
         ) {
             self.isOn = isOn
             self.brightness = brightness
@@ -60,6 +64,7 @@ final class LightController: ObservableObject {
             self.effectMode = effectMode
             self.primaryDirectionalLightAngle = primaryDirectionalLightAngle
             self.secondaryDirectionalLightAngle = secondaryDirectionalLightAngle
+            self.cameraAutomationEnabled = cameraAutomationEnabled
         }
 
         @MainActor
@@ -72,11 +77,12 @@ final class LightController: ObservableObject {
                 borderWidth: model.borderWidth,
                 effectMode: model.effectMode,
                 primaryDirectionalLightAngle: model.primaryDirectionalLightAngle,
-                secondaryDirectionalLightAngle: model.secondaryDirectionalLightAngle
+                secondaryDirectionalLightAngle: model.secondaryDirectionalLightAngle,
+                cameraAutomationEnabled: model.isCameraAutomationEnabled
             )
         }
 
-        init?(dictionary: [String: Any]) {
+        init?(dictionary: [String: Any], fallbackCameraAutomationEnabled: Bool) {
             let rawEffectMode = dictionary["effectMode"] as? String ?? LightEffectMode.normal.rawValue
             guard let effectMode = LightEffectMode(rawValue: rawEffectMode) else {
                 return nil
@@ -124,7 +130,8 @@ final class LightController: ObservableObject {
                         dictionary["secondaryDirectionalLightAngle"] as? Double
                             ?? LightConfiguration.defaultSecondaryDirectionalLightAngle
                     )
-                )
+                ),
+                cameraAutomationEnabled: dictionary["cameraAutomationEnabled"] as? Bool ?? fallbackCameraAutomationEnabled
             )
         }
 
@@ -137,7 +144,8 @@ final class LightController: ObservableObject {
                 "borderWidth": Double(borderWidth),
                 "effectMode": effectMode.rawValue,
                 "primaryDirectionalLightAngle": primaryDirectionalLightAngle,
-                "secondaryDirectionalLightAngle": secondaryDirectionalLightAngle
+                "secondaryDirectionalLightAngle": secondaryDirectionalLightAngle,
+                "cameraAutomationEnabled": cameraAutomationEnabled
             ]
         }
     }
@@ -177,16 +185,20 @@ final class LightController: ObservableObject {
 
     private final class DisplayContext {
         let model: LightViewModel
+        var screen: NSScreen?
         var overlayWindow: NSWindow?
         var hostingView: NSHostingView<LightView>?
 
-        init(model: LightViewModel) {
+        init(model: LightViewModel, screen: NSScreen?) {
             self.model = model
+            self.screen = screen
         }
     }
 
     @Published private(set) var displays: [LightViewModel] = []
     @Published private(set) var anyDisplayOn = false
+    @Published private(set) var isCameraInUse = false
+    @Published private(set) var isLaunchAtLoginEnabled = false
 
     private var displayContexts: [String: DisplayContext] = [:]
     private var lastScreenLayout: [ScreenLayoutSignature] = []
@@ -194,6 +206,7 @@ final class LightController: ObservableObject {
     private var localMouseMonitor: Any?
     private var edrRefreshTimer: Timer?
     private var pointerRefreshTimer: Timer?
+    private var pointerRefreshIdleTimer: Timer?
     private var pointerTrackedDisplayID: String?
     private var lastLoggedHDRHeadroom: [String: HDRHeadroomSnapshot] = [:]
     private var lastLoggedHDRHeadroomTimes: [String: TimeInterval] = [:]
@@ -202,16 +215,29 @@ final class LightController: ObservableObject {
     private var persistedDisplaySettings: [String: PersistedDisplaySettings] = [:]
     private var hasCompletedLaunch = false
     private var shouldPresentInitialControlPanels = false
+    private var defaultCameraAutomationEnabled = false
+    private var legacyCameraAutomationEnabled: Bool?
+    private var needsCameraAutomationSettingsMigration = false
+    private let cameraActivityMonitor = CameraActivityMonitor()
+    private var isCameraAutomationSessionActive = false
+    private var cameraAutomationSuppressedDisplayIDs: Set<String> = []
 
     init() {
-        shouldPresentInitialControlPanels = shouldShowInitialControlPanelsForFreshConfiguration()
+        let hasStoredLightConfiguration = hasAnyStoredLightConfiguration()
+        legacyCameraAutomationEnabled = userDefaults.object(forKey: DefaultsKey.cameraAutomationEnabled) as? Bool
+        defaultCameraAutomationEnabled = !hasStoredLightConfiguration
+        shouldPresentInitialControlPanels = shouldShowInitialControlPanelsForFreshConfiguration(
+            hasStoredLightConfiguration: hasStoredLightConfiguration
+        )
         migrateDefaultsFromPreviousBundleIdentifierIfNeeded()
         persistedDisplaySettings = loadPersistedDisplaySettings()
+        observeCameraActivity()
         lastScreenLayout = captureScreenLayout()
         rebuildDisplayContexts()
+        finalizeCameraAutomationSettingsMigrationIfNeeded()
         observeScreenChanges()
-        observeMouseLocation()
-        observeEDRHeadroom()
+        refreshLaunchAtLoginStatus()
+        prepareCameraAutomationOnLaunch()
     }
 
     deinit {
@@ -225,6 +251,7 @@ final class LightController: ObservableObject {
 
         edrRefreshTimer?.invalidate()
         pointerRefreshTimer?.invalidate()
+        pointerRefreshIdleTimer?.invalidate()
     }
 
     func completeLaunch() {
@@ -249,8 +276,19 @@ final class LightController: ObservableObject {
     }
 
     func toggleLight(for display: LightViewModel) {
-        display.isOn.toggle()
+        if display.isEffectivelyOn {
+            display.isOn = false
+            display.isCameraAutomationActive = false
+            if isCameraAutomationSessionActive {
+                cameraAutomationSuppressedDisplayIDs.insert(display.persistentID)
+            }
+        } else {
+            display.isOn = true
+            cameraAutomationSuppressedDisplayIDs.remove(display.persistentID)
+        }
+
         persist(display)
+        applyCameraAutomationState()
         refreshOverlayVisibility(for: display.persistentID)
         updateAnyDisplayOn()
     }
@@ -303,12 +341,46 @@ final class LightController: ObservableObject {
     }
 
     func toggleHDRMode(for display: LightViewModel) {
-        guard display.hasHDRDisplay else { return }
+        setHDRMode(!display.preferredHDREnabled, for: display)
+    }
 
-        display.preferredHDREnabled.toggle()
+    func setHDRMode(_ isEnabled: Bool, for display: LightViewModel) {
+        guard display.hasHDRDisplay else { return }
+        guard display.preferredHDREnabled != isEnabled else { return }
+
+        display.preferredHDREnabled = isEnabled
         display.isHDREnabled = display.hasHDRDisplay && display.preferredHDREnabled
         applyEDRState(for: display.persistentID)
+        updateDisplayDrivenObservers()
         persist(display)
+    }
+
+    func setCameraAutomationEnabled(_ isEnabled: Bool, for display: LightViewModel) {
+        guard display.isCameraAutomationEnabled != isEnabled else { return }
+
+        display.isCameraAutomationEnabled = isEnabled
+        persist(display)
+        updateCameraActivityMonitor()
+        if !isEnabled {
+            display.isCameraAutomationActive = false
+            cameraAutomationSuppressedDisplayIDs.remove(display.persistentID)
+            refreshOverlayVisibility(for: display.persistentID)
+        }
+        applyCameraAutomationState()
+    }
+
+    func setLaunchAtLoginEnabled(_ isEnabled: Bool) {
+        do {
+            if isEnabled {
+                try SMAppService.mainApp.register()
+            } else {
+                try SMAppService.mainApp.unregister()
+            }
+        } catch {
+            logger.error("Failed to update launch at login enabled=\(isEnabled) error=\(error.localizedDescription, privacy: .public)")
+        }
+
+        refreshLaunchAtLoginStatus()
     }
 
     private func observeScreenChanges() {
@@ -318,6 +390,20 @@ final class LightController: ObservableObject {
             name: NSApplication.didChangeScreenParametersNotification,
             object: nil
         )
+    }
+
+    private func updateMouseObservation(isActive: Bool) {
+        if isActive {
+            guard globalMouseMonitor == nil, localMouseMonitor == nil else {
+                updateMouseLocation()
+                return
+            }
+
+            observeMouseLocation()
+            return
+        }
+
+        stopMouseObservation()
     }
 
     private func observeMouseLocation() {
@@ -342,6 +428,20 @@ final class LightController: ObservableObject {
         updateMouseLocation()
     }
 
+    private func stopMouseObservation() {
+        if let globalMouseMonitor {
+            NSEvent.removeMonitor(globalMouseMonitor)
+            self.globalMouseMonitor = nil
+        }
+
+        if let localMouseMonitor {
+            NSEvent.removeMonitor(localMouseMonitor)
+            self.localMouseMonitor = nil
+        }
+
+        clearMouseTrackingState()
+    }
+
     @objc private func handleScreenParametersDidChange(_ notification: Notification) {
         let currentLayout = captureScreenLayout()
         guard currentLayout != lastScreenLayout else { return }
@@ -361,21 +461,27 @@ final class LightController: ObservableObject {
                 closeOverlayWindow(for: context)
                 displayContexts.removeValue(forKey: persistentID)
             }
+            cameraAutomationSuppressedDisplayIDs.remove(persistentID)
         }
 
         if let pointerTrackedDisplayID, !descriptorIDs.contains(pointerTrackedDisplayID) {
             self.pointerTrackedDisplayID = nil
-            updatePointerRefreshTimer(isActive: false)
+            stopPointerRefresh()
         }
 
         for descriptor in descriptors {
             let context = displayContexts[descriptor.persistentID] ?? makeDisplayContext(for: descriptor)
+            context.screen = descriptor.screen
             update(context.model, with: descriptor)
-            configureOverlayWindow(for: context, descriptor: descriptor)
+            if context.overlayWindow != nil {
+                configureOverlayWindow(for: context)
+            }
             displayContexts[descriptor.persistentID] = context
         }
 
         displays = descriptors.compactMap { displayContexts[$0.persistentID]?.model }
+        updateCameraActivityMonitor()
+        applyCameraAutomationState()
         logHDRHeadroomIfNeeded(for: descriptors)
         updateAnyDisplayOn()
     }
@@ -449,10 +555,11 @@ final class LightController: ObservableObject {
             effectMode: settings.effectMode,
             primaryDirectionalLightAngle: settings.primaryDirectionalLightAngle,
             secondaryDirectionalLightAngle: settings.secondaryDirectionalLightAngle,
-            mouseLocation: NSEvent.mouseLocation
+            mouseLocation: NSEvent.mouseLocation,
+            isCameraAutomationEnabled: settings.cameraAutomationEnabled
         )
 
-        return DisplayContext(model: model)
+        return DisplayContext(model: model, screen: descriptor.screen)
     }
 
     private func update(_ model: LightViewModel, with descriptor: ScreenDescriptor) {
@@ -466,28 +573,32 @@ final class LightController: ObservableObject {
         model.isHDREnabled = descriptor.hasHDRDisplay && model.preferredHDREnabled
     }
 
-    private func configureOverlayWindow(for context: DisplayContext, descriptor: ScreenDescriptor) {
+    @discardableResult
+    private func configureOverlayWindow(for context: DisplayContext) -> Bool {
+        guard let screen = context.screen else { return false }
+
         if context.overlayWindow == nil || context.hostingView == nil {
             closeOverlayWindow(for: context)
 
             let lightView = LightView(model: context.model)
             let hostingView = NSHostingView(rootView: lightView)
             let window = NSWindow(
-                contentRect: descriptor.frame,
+                contentRect: context.model.screenFrame,
                 styleMask: [.borderless],
                 backing: .buffered,
                 defer: false,
-                screen: descriptor.screen
+                screen: screen
             )
 
             window.contentView = hostingView
+            window.isReleasedWhenClosed = false
             hostingView.wantsLayer = true
 
             context.hostingView = hostingView
             context.overlayWindow = window
         }
 
-        guard let window = context.overlayWindow, let hostingView = context.hostingView else { return }
+        guard let window = context.overlayWindow, let hostingView = context.hostingView else { return false }
 
         window.isOpaque = false
         window.backgroundColor = .clear
@@ -497,9 +608,9 @@ final class LightController: ObservableObject {
         window.level = .mainMenu
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
         applyEDRState(to: hostingView, isHDREnabled: context.model.isHDREnabled)
-        window.setFrame(descriptor.frame, display: false)
-        window.orderOut(nil)
-        logger.info("Configured overlay display=\(descriptor.displayName, privacy: .public) targetFrame=\(NSStringFromRect(descriptor.frame), privacy: .public)")
+        window.setFrame(context.model.screenFrame, display: false)
+        logger.info("Configured overlay display=\(context.model.displayName, privacy: .public) targetFrame=\(NSStringFromRect(context.model.screenFrame), privacy: .public)")
+        return true
     }
 
     private func closeOverlayWindow(for context: DisplayContext) {
@@ -508,6 +619,10 @@ final class LightController: ObservableObject {
         context.overlayWindow?.close()
         context.overlayWindow = nil
         context.hostingView = nil
+    }
+
+    private func hideOverlayWindow(for context: DisplayContext) {
+        context.overlayWindow?.orderOut(nil)
     }
 
     private func refreshOverlayVisibility() {
@@ -519,15 +634,17 @@ final class LightController: ObservableObject {
     private func refreshOverlayVisibility(for persistentID: String) {
         guard let context = displayContexts[persistentID] else { return }
 
-        if hasCompletedLaunch && context.model.isOn {
+        if hasCompletedLaunch && context.model.isEffectivelyOn {
             showOverlayWindow(for: context)
         } else {
-            logger.info("Hiding overlay display=\(context.model.displayName, privacy: .public) isOn=\(context.model.isOn)")
-            context.overlayWindow?.orderOut(nil)
+            logger.info("Hiding overlay display=\(context.model.displayName, privacy: .public) isOn=\(context.model.isOn) cameraAuto=\(context.model.isCameraAutomationActive)")
+            hideOverlayWindow(for: context)
         }
     }
 
     private func showOverlayWindow(for context: DisplayContext) {
+        guard configureOverlayWindow(for: context) else { return }
+
         context.hostingView?.layoutSubtreeIfNeeded()
         context.hostingView?.displayIfNeeded()
         context.overlayWindow?.contentView?.displayIfNeeded()
@@ -538,7 +655,7 @@ final class LightController: ObservableObject {
         let isVisible = context.overlayWindow?.isVisible ?? false
         let occlusionStateRawValue = context.overlayWindow?.occlusionState.rawValue ?? 0
         logger.info(
-            "Showed overlay display=\(context.model.displayName, privacy: .public) actualScreen=\(actualScreen, privacy: .public) actualFrame=\(actualFrame, privacy: .public) isOn=\(context.model.isOn) isVisible=\(isVisible) occlusionState=\(occlusionStateRawValue)"
+            "Showed overlay display=\(context.model.displayName, privacy: .public) actualScreen=\(actualScreen, privacy: .public) actualFrame=\(actualFrame, privacy: .public) isOn=\(context.model.isOn) cameraAuto=\(context.model.isCameraAutomationActive) isVisible=\(isVisible) occlusionState=\(occlusionStateRawValue)"
         )
     }
 
@@ -552,44 +669,90 @@ final class LightController: ObservableObject {
         hostingView.layer?.wantsExtendedDynamicRangeContent = isHDREnabled
     }
 
-    private func updateMouseLocation() {
+    private func updateMouseLocation(extendsPointerRefresh: Bool = true) {
         let mouseLocation = NSEvent.mouseLocation
         let usesMetalRenderer = MetalLightView.shouldRenderOverlays
         let activeDisplay = displays.first { display in
             let shouldTrackMouse = usesMetalRenderer || !display.isHDREnabled || display.maxHDRFactor >= 8.0
-            return shouldTrackMouse && display.screenFrame.contains(mouseLocation)
+            return display.isEffectivelyOn && shouldTrackMouse && display.screenFrame.contains(mouseLocation)
         }
         let activeDisplayID = activeDisplay?.persistentID
 
         if pointerTrackedDisplayID != activeDisplayID, let previousDisplayID = pointerTrackedDisplayID {
-            displayContexts[previousDisplayID]?.model.updateMouseLocation(nil)
+            if let previousDisplay = displayContexts[previousDisplayID]?.model {
+                previousDisplay.updateMouseLocation(nil)
+                previousDisplay.isPointerRefreshActive = false
+            }
         }
 
         activeDisplay?.updateMouseLocation(mouseLocation)
         pointerTrackedDisplayID = activeDisplayID
 
-        let needsPointerRefresh = activeDisplay?.isOn == true && usesMetalRenderer
-        updatePointerRefreshTimer(isActive: needsPointerRefresh)
-    }
-
-    private func updatePointerRefreshTimer(isActive: Bool) {
-        if isActive {
-            guard pointerRefreshTimer == nil else { return }
-
-            let timer = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
-                Task { @MainActor [weak self] in
-                    self?.updateMouseLocation()
-                }
-            }
-            RunLoop.main.add(timer, forMode: .common)
-            pointerRefreshTimer = timer
-        } else {
-            pointerRefreshTimer?.invalidate()
-            pointerRefreshTimer = nil
+        let needsPointerRefresh = activeDisplay?.isEffectivelyOn == true && usesMetalRenderer
+        if needsPointerRefresh, extendsPointerRefresh, let activeDisplay {
+            activatePointerRefresh(for: activeDisplay)
+        } else if !needsPointerRefresh {
+            stopPointerRefresh()
         }
     }
 
-    private func observeEDRHeadroom() {
+    private func activatePointerRefresh(for display: LightViewModel) {
+        guard display.isEffectivelyOn else {
+            stopPointerRefresh()
+            return
+        }
+
+        display.isPointerRefreshActive = true
+        startPointerRefreshTimer()
+        schedulePointerRefreshIdle()
+    }
+
+    private func startPointerRefreshTimer() {
+        guard pointerRefreshTimer == nil else { return }
+
+        let timer = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.updateMouseLocation(extendsPointerRefresh: false)
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        pointerRefreshTimer = timer
+    }
+
+    private func schedulePointerRefreshIdle() {
+        pointerRefreshIdleTimer?.invalidate()
+        let timer = Timer(timeInterval: 0.35, repeats: false) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.stopPointerRefresh()
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        pointerRefreshIdleTimer = timer
+    }
+
+    private func stopPointerRefresh() {
+        pointerRefreshIdleTimer?.invalidate()
+        pointerRefreshIdleTimer = nil
+        pointerRefreshTimer?.invalidate()
+        pointerRefreshTimer = nil
+
+        if let pointerTrackedDisplayID {
+            displayContexts[pointerTrackedDisplayID]?.model.isPointerRefreshActive = false
+        }
+    }
+
+    private func clearMouseTrackingState() {
+        stopPointerRefresh()
+        pointerTrackedDisplayID = nil
+        for display in displays {
+            display.updateMouseLocation(nil)
+            display.isPointerRefreshActive = false
+        }
+    }
+
+    private func startEDRHeadroomObservation() {
+        guard edrRefreshTimer == nil else { return }
+
         let timer = Timer(timeInterval: 1.0, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.refreshCurrentHDRFactors()
@@ -598,6 +761,19 @@ final class LightController: ObservableObject {
         RunLoop.main.add(timer, forMode: .common)
         edrRefreshTimer = timer
         refreshCurrentHDRFactors()
+    }
+
+    private func updateDisplayDrivenObservers() {
+        let hasVisibleLight = hasCompletedLaunch && displays.contains(where: \.isEffectivelyOn)
+        let hasVisibleHDRLight = hasCompletedLaunch && displays.contains { $0.isEffectivelyOn && $0.isHDREnabled }
+
+        updateMouseObservation(isActive: hasVisibleLight)
+        if hasVisibleHDRLight {
+            startEDRHeadroomObservation()
+        } else {
+            edrRefreshTimer?.invalidate()
+            edrRefreshTimer = nil
+        }
     }
 
     private func refreshCurrentHDRFactors() {
@@ -696,7 +872,68 @@ final class LightController: ObservableObject {
     }
 
     private func updateAnyDisplayOn() {
-        anyDisplayOn = displays.contains(where: \.isOn)
+        anyDisplayOn = displays.contains(where: \.isEffectivelyOn)
+        updateDisplayDrivenObservers()
+    }
+
+    private func observeCameraActivity() {
+        cameraActivityMonitor.onActivityChanged = { [weak self] isActive in
+            self?.handleCameraActivityChanged(isActive)
+        }
+    }
+
+    private func updateCameraActivityMonitor() {
+        if displays.contains(where: \.isCameraAutomationEnabled) {
+            cameraActivityMonitor.start()
+        } else {
+            cameraActivityMonitor.stop()
+            isCameraInUse = false
+        }
+    }
+
+    private func handleCameraActivityChanged(_ isActive: Bool) {
+        isCameraInUse = isActive
+
+        if isActive {
+            if !isCameraAutomationSessionActive {
+                isCameraAutomationSessionActive = true
+                cameraAutomationSuppressedDisplayIDs.removeAll()
+            }
+
+            applyCameraAutomationState()
+        } else {
+            finishCameraAutomationSession()
+        }
+    }
+
+    private func finishCameraAutomationSession() {
+        isCameraAutomationSessionActive = false
+        cameraAutomationSuppressedDisplayIDs.removeAll()
+        applyCameraAutomationState()
+    }
+
+    private func applyCameraAutomationState() {
+        for display in displays {
+            let shouldActivate = display.isCameraAutomationEnabled
+                && isCameraAutomationSessionActive
+                && !display.isOn
+                && !cameraAutomationSuppressedDisplayIDs.contains(display.persistentID)
+
+            if display.isCameraAutomationActive != shouldActivate {
+                display.isCameraAutomationActive = shouldActivate
+                refreshOverlayVisibility(for: display.persistentID)
+            }
+        }
+
+        updateAnyDisplayOn()
+    }
+
+    private func refreshLaunchAtLoginStatus() {
+        isLaunchAtLoginEnabled = SMAppService.mainApp.status == .enabled
+    }
+
+    private func prepareCameraAutomationOnLaunch() {
+        updateCameraActivityMonitor()
     }
 
     private func loadPersistedDisplaySettings() -> [String: PersistedDisplaySettings] {
@@ -706,8 +943,18 @@ final class LightController: ObservableObject {
 
         var result: [String: PersistedDisplaySettings] = [:]
         for (persistentID, value) in rawDictionary {
-            guard let dictionary = value as? [String: Any], let settings = PersistedDisplaySettings(dictionary: dictionary) else {
+            guard
+                let dictionary = value as? [String: Any],
+                let settings = PersistedDisplaySettings(
+                    dictionary: dictionary,
+                    fallbackCameraAutomationEnabled: cameraAutomationMigrationFallback
+                )
+            else {
                 continue
+            }
+
+            if dictionary["cameraAutomationEnabled"] as? Bool == nil {
+                needsCameraAutomationSettingsMigration = true
             }
 
             result[persistentID] = settings
@@ -716,12 +963,28 @@ final class LightController: ObservableObject {
         return result
     }
 
-    private func shouldShowInitialControlPanelsForFreshConfiguration() -> Bool {
+    private func shouldShowInitialControlPanelsForFreshConfiguration(hasStoredLightConfiguration: Bool? = nil) -> Bool {
         guard userDefaults.object(forKey: DefaultsKey.initialControlPanelsShown) == nil else {
             return false
         }
 
-        return !hasAnyStoredLightConfiguration()
+        return !(hasStoredLightConfiguration ?? hasAnyStoredLightConfiguration())
+    }
+
+    private var cameraAutomationMigrationFallback: Bool {
+        legacyCameraAutomationEnabled ?? defaultCameraAutomationEnabled
+    }
+
+    private func finalizeCameraAutomationSettingsMigrationIfNeeded() {
+        guard legacyCameraAutomationEnabled != nil || needsCameraAutomationSettingsMigration else { return }
+
+        for display in displays {
+            persistedDisplaySettings[display.persistentID] = PersistedDisplaySettings(model: display)
+        }
+        savePersistedDisplaySettings()
+        userDefaults.removeObject(forKey: DefaultsKey.cameraAutomationEnabled)
+        legacyCameraAutomationEnabled = nil
+        needsCameraAutomationSettingsMigration = false
     }
 
     private func hasAnyStoredLightConfiguration() -> Bool {
@@ -734,7 +997,8 @@ final class LightController: ObservableObject {
             DefaultsKey.legacyBorderWidth,
             DefaultsKey.legacyEffectMode,
             DefaultsKey.legacyPrimaryDirectionalLightAngle,
-            DefaultsKey.legacySecondaryDirectionalLightAngle
+            DefaultsKey.legacySecondaryDirectionalLightAngle,
+            DefaultsKey.cameraAutomationEnabled
         ]
         if currentKeys.contains(where: { userDefaults.object(forKey: $0) != nil }) {
             return true
@@ -795,7 +1059,8 @@ final class LightController: ObservableObject {
                 legacyObject(forKey: DefaultsKey.legacySecondaryDirectionalLightAngle, oldKey: OldDefaultsKey.legacySecondaryDirectionalLightAngle) as? Double
                     ?? LightConfiguration.defaultSecondaryDirectionalLightAngle,
                 to: LightConfiguration.directionalLightAngleRange
-            )
+            ),
+            cameraAutomationEnabled: cameraAutomationMigrationFallback
         )
     }
 
@@ -817,7 +1082,10 @@ final class LightController: ObservableObject {
 
     private func persist(_ display: LightViewModel) {
         persistedDisplaySettings[display.persistentID] = PersistedDisplaySettings(model: display)
+        savePersistedDisplaySettings()
+    }
 
+    private func savePersistedDisplaySettings() {
         var rawDictionary: [String: [String: Any]] = [:]
         for (persistentID, settings) in persistedDisplaySettings {
             rawDictionary[persistentID] = settings.dictionaryValue

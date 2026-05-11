@@ -157,7 +157,9 @@ float curvedBrightness(constant Uniforms& uniforms) {
 float targetIntensity(constant Uniforms& uniforms) {
     float maxIntensity = uniforms.isHDREnabled == 1 ? effectiveHDRFactor(uniforms) : 1.35;
     float compensation = uniforms.isHDREnabled == 1 ? 1.0 + (lowHeadroomCompensation(uniforms) * 0.24) : 1.0;
-    return maxIntensity * (0.18 + (curvedBrightness(uniforms) * 0.82)) * compensation;
+    float cb = curvedBrightness(uniforms);
+    float baseCurve = uniforms.isHDREnabled == 1 ? 0.15 + (cb * 0.85) : 0.18 + (cb * 0.82);
+    return maxIntensity * baseCurve * compensation;
 }
 
 float renderIntensity(constant Uniforms& uniforms) {
@@ -185,6 +187,30 @@ float pointerCutoutMask(float2 point, constant Uniforms& uniforms) {
 
 float temperatureStrength(constant Uniforms& uniforms) {
     return abs(saturate(uniforms.colorTemperature) - 0.5) * 2.0;
+}
+
+float hdrLowBrightnessOpacityScale(constant Uniforms& uniforms) {
+    if (uniforms.isHDREnabled == 0) {
+        return 1.0;
+    }
+
+    return 0.88 + (curvedBrightness(uniforms) * 0.12);
+}
+
+float hdrEffectOpacityScale(constant Uniforms& uniforms) {
+    if (uniforms.isHDREnabled == 0) {
+        return 1.0;
+    }
+
+    return 0.16 + (pow(saturate(uniforms.brightness), 0.72) * 0.56);
+}
+
+float hdrEffectIntensityScale(constant Uniforms& uniforms) {
+    if (uniforms.isHDREnabled == 0) {
+        return 1.0;
+    }
+
+    return 0.70 + (pow(saturate(uniforms.brightness), 0.90) * 0.10);
 }
 
 float flashStrength(float phase, float start, float duration) {
@@ -320,6 +346,7 @@ void addNormalLight(
     float compensation = lowHeadroomCompensation(uniforms);
     float tempStrength = temperatureStrength(uniforms);
     float lowBrightnessLift = compensation * pow(1.0 - cb, 1.18);
+    float hdrOpacityScale = hdrLowBrightnessOpacityScale(uniforms);
     float baseRadius = uniforms.isHDREnabled == 1 ? 26.0 : 20.0;
     float outerRadius = uniforms.isHDREnabled == 1 ? 24.0 : 16.0;
     float coreBloomRadius = max(10.0 * scale, (baseRadius * scale) + (uniforms.borderWidth * 0.10) - (uniforms.brightness * 6.0 * scale));
@@ -332,9 +359,9 @@ void addNormalLight(
     float highlightOpacity;
 
     if (uniforms.isHDREnabled == 1) {
-        baseOpacity = min(1.0, 0.20 + (cb * (0.24 + compensation * 0.36)) + (tempStrength * 0.06));
-        bloomOpacity = min(1.0, 0.10 + (cb * (0.18 + compensation * 0.14)) + (tempStrength * 0.05) + (lowBrightnessLift * 0.10));
-        highlightOpacity = min(1.0, 0.10 + (cb * (0.14 + compensation * 0.12)) + (tempStrength * 0.04) + (lowBrightnessLift * 0.06));
+        baseOpacity = min(1.0, 0.18 + (cb * (0.24 + compensation * 0.36)) + (tempStrength * 0.06)) * hdrOpacityScale;
+        bloomOpacity = min(1.0, 0.08 + (cb * (0.18 + compensation * 0.14)) + (tempStrength * 0.05) + (lowBrightnessLift * 0.04)) * hdrOpacityScale;
+        highlightOpacity = min(1.0, 0.08 + (cb * (0.14 + compensation * 0.12)) + (tempStrength * 0.04) + (lowBrightnessLift * 0.025)) * hdrOpacityScale;
     } else {
         baseOpacity = min(1.0, 0.24 + (cb * 0.76));
         bloomOpacity = min(1.0, 0.06 + (cb * 0.22));
@@ -355,7 +382,7 @@ void addNormalLight(
 
     if (uniforms.isHDREnabled == 1) {
         float hdrBloomMask = ringMask(point, uniforms, 0.88, outerBloomRadius * 1.20);
-        float hdrBloomOpacity = min(1.0, 0.10 + (cb * (0.16 + compensation * 0.12)) + (tempStrength * 0.06) + (lowBrightnessLift * 0.12));
+        float hdrBloomOpacity = min(1.0, 0.08 + (cb * (0.16 + compensation * 0.12)) + (tempStrength * 0.06) + (lowBrightnessLift * 0.045)) * hdrOpacityScale;
         color += baseColor * hdrBloomMask * hdrBloomOpacity * intensity * 1.18 * ringScale;
         alpha += hdrBloomMask * hdrBloomOpacity * ringScale;
     }
@@ -378,6 +405,7 @@ void addDirectionalLight(
     float lightEnergy = isKeyLight ? uniforms.professionalPrimaryEnergy : uniforms.professionalSecondaryEnergy;
     float hdrBoost = isKeyLight ? uniforms.professionalKeyHDRIntensityBoost : 1.0;
     float intensity = renderIntensity(uniforms) * lightEnergy * hdrBoost;
+    float hdrOpacityScale = hdrLowBrightnessOpacityScale(uniforms);
     float2 beamPoint = center + ((source - center) * (isKeyLight ? 0.82 : 0.74));
     float beamRadiusX = maxDimension * (isKeyLight ? 0.0814 : 0.1000);
     float beamRadiusY = maxDimension * (isKeyLight ? 0.0308 : 0.0360);
@@ -393,10 +421,10 @@ void addDirectionalLight(
         maxDimension * (isKeyLight ? 0.021 : 0.026) * blurScale
     ) * beamFalloff(point, beamPoint, angle, beamRadiusX);
     float cb = curvedBrightness(uniforms);
-    float glowOpacity = min(1.0, (isKeyLight ? 0.24 : 0.14) + (cb * (isKeyLight ? 0.36 : 0.22)));
-    float coreOpacity = min(1.0, (isKeyLight ? 0.24 : 0.11) + (cb * (isKeyLight ? 0.30 : 0.16)));
-    float hotspotOpacity = min(1.0, (isKeyLight ? 0.18 : 0.08) + (cb * (isKeyLight ? 0.20 : 0.08)));
-    float beamOpacity = min(1.0, (isKeyLight ? 0.16 : 0.07) + (cb * (isKeyLight ? 0.22 : 0.11)));
+    float glowOpacity = min(1.0, (isKeyLight ? 0.24 : 0.14) + (cb * (isKeyLight ? 0.36 : 0.22))) * hdrOpacityScale;
+    float coreOpacity = min(1.0, (isKeyLight ? 0.24 : 0.11) + (cb * (isKeyLight ? 0.30 : 0.16))) * hdrOpacityScale;
+    float hotspotOpacity = min(1.0, (isKeyLight ? 0.18 : 0.08) + (cb * (isKeyLight ? 0.20 : 0.08))) * hdrOpacityScale;
+    float beamOpacity = min(1.0, (isKeyLight ? 0.16 : 0.07) + (cb * (isKeyLight ? 0.22 : 0.11))) * hdrOpacityScale;
     float3 baseColor = temperatureColor(uniforms.colorTemperature);
     float3 brightColor = highlightColor(uniforms);
 
@@ -426,15 +454,17 @@ void addEffectLight(
     EffectState state = effectFrameState(uniforms.effectMode, uniforms.time);
     float blendAmount = state.trailingPower / max(0.001, state.leadingPower + state.trailingPower);
     float3 overallColor = blendColor(state.leadingColor, state.trailingColor, blendAmount);
-    float overallOpacity = min(1.0, (0.06 + (cb * 0.14)) + state.ambientPower);
-    float leadingBaseOpacity = min(1.0, (0.08 + (cb * 0.18)) + (state.leadingPower * 0.60));
-    float trailingBaseOpacity = min(1.0, (0.08 + (cb * 0.18)) + (state.trailingPower * 0.60));
-    float leadingHighlightOpacity = min(1.0, (0.04 + (cb * 0.12)) + (state.leadingPower * 0.54));
-    float trailingHighlightOpacity = min(1.0, (0.04 + (cb * 0.12)) + (state.trailingPower * 0.54));
+    float effectOpacityScale = hdrEffectOpacityScale(uniforms);
+    float effectIntensityScale = hdrEffectIntensityScale(uniforms);
+    float overallOpacity = min(1.0, (0.06 + (cb * 0.14)) + state.ambientPower) * effectOpacityScale;
+    float leadingBaseOpacity = min(1.0, (0.08 + (cb * 0.18)) + (state.leadingPower * 0.60)) * effectOpacityScale;
+    float trailingBaseOpacity = min(1.0, (0.08 + (cb * 0.18)) + (state.trailingPower * 0.60)) * effectOpacityScale;
+    float leadingHighlightOpacity = min(1.0, (0.04 + (cb * 0.12)) + (state.leadingPower * 0.54)) * effectOpacityScale;
+    float trailingHighlightOpacity = min(1.0, (0.04 + (cb * 0.12)) + (state.trailingPower * 0.54)) * effectOpacityScale;
     float intensity = renderIntensity(uniforms);
-    float leadingIntensity = uniforms.isHDREnabled == 1 ? max(1.0, intensity * (0.52 + (state.leadingPower * 0.92))) : 1.0;
-    float trailingIntensity = uniforms.isHDREnabled == 1 ? max(1.0, intensity * (0.52 + (state.trailingPower * 0.92))) : 1.0;
-    float overallIntensity = uniforms.isHDREnabled == 1 ? max(1.0, intensity * (0.42 + (state.ambientPower * 0.80))) : 1.0;
+    float leadingIntensity = uniforms.isHDREnabled == 1 ? max(1.0, intensity * effectIntensityScale * (0.52 + (state.leadingPower * 0.92))) : 1.0;
+    float trailingIntensity = uniforms.isHDREnabled == 1 ? max(1.0, intensity * effectIntensityScale * (0.52 + (state.trailingPower * 0.92))) : 1.0;
+    float overallIntensity = uniforms.isHDREnabled == 1 ? max(1.0, intensity * effectIntensityScale * (0.42 + (state.ambientPower * 0.80))) : 1.0;
 
     float ambientMask = ringMask(point, uniforms, 1.08, outerBloomRadius * 1.22);
     float outerMask = ringMask(point, uniforms, 1.02, outerBloomRadius);
@@ -460,8 +490,8 @@ void addEffectLight(
 
     if (uniforms.isHDREnabled == 1) {
         float hdrMask = ringMask(point, uniforms, 0.90, outerBloomRadius * 1.16);
-        float leadingHDR = min(1.0, 0.06 + (state.leadingPower * 0.42));
-        float trailingHDR = min(1.0, 0.06 + (state.trailingPower * 0.42));
+        float leadingHDR = min(1.0, 0.06 + (state.leadingPower * 0.42)) * effectOpacityScale;
+        float trailingHDR = min(1.0, 0.06 + (state.trailingPower * 0.42)) * effectOpacityScale;
         color += state.leadingColor * hdrMask * leftSide * leadingHDR * leadingIntensity * 1.16;
         color += state.trailingColor * hdrMask * rightSide * trailingHDR * trailingIntensity * 1.16;
         alpha += hdrMask * (leftSide * leadingHDR + rightSide * trailingHDR);

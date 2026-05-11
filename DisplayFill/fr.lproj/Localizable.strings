@@ -18,6 +18,7 @@
 "HDR_BUTTON_UNAVAILABLE" = "Non pris en charge";
 "COMMON_ENABLE" = "Activer";
 "COMMON_DISABLE" = "Désactiver";
+"OPTIONS_MENU" = "Options";
 "ABOUT_LIGHT" = "À propos de DisplayFill";
 "QUIT" = "Quitter";
 
@@ -37,3 +38,9 @@
 "PRO_DIRECTIONAL_LIGHT_ANGLES" = "Angles d’éclairage";
 "PRO_DIRECTIONAL_LIGHT_PRIMARY" = "Principal";
 "PRO_DIRECTIONAL_LIGHT_SECONDARY" = "Appoint";
+"CAMERA_AUTOMATION_TITLE" = "Éclairage auto caméra";
+"CAMERA_AUTOMATION_SUBTITLE_OFF" = "Activer quand une autre app démarre la caméra";
+"CAMERA_AUTOMATION_SUBTITLE_ON" = "Surveillance de l’activité caméra";
+"CAMERA_AUTOMATION_SUBTITLE_ACTIVE" = "La caméra est active";
+"LAUNCH_AT_LOGIN_TITLE" = "Lancer à la connexion";
+"LAUNCH_AT_LOGIN_SUBTITLE" = "Lancer automatiquement à la connexion";

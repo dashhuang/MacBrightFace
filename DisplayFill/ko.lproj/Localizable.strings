@@ -18,6 +18,7 @@
 "HDR_BUTTON_UNAVAILABLE" = "지원 안 됨";
 "COMMON_ENABLE" = "켜기";
 "COMMON_DISABLE" = "끄기";
+"OPTIONS_MENU" = "옵션";
 "ABOUT_LIGHT" = "DisplayFill 정보";
 "QUIT" = "종료";
 
@@ -37,3 +38,9 @@
 "PRO_DIRECTIONAL_LIGHT_ANGLES" = "조명 각도";
 "PRO_DIRECTIONAL_LIGHT_PRIMARY" = "키";
 "PRO_DIRECTIONAL_LIGHT_SECONDARY" = "필";
+"CAMERA_AUTOMATION_TITLE" = "카메라 자동 조명";
+"CAMERA_AUTOMATION_SUBTITLE_OFF" = "다른 앱이 카메라를 켜면 자동으로 켜기";
+"CAMERA_AUTOMATION_SUBTITLE_ON" = "카메라 활동 감시 중";
+"CAMERA_AUTOMATION_SUBTITLE_ACTIVE" = "카메라 사용 중";
+"LAUNCH_AT_LOGIN_TITLE" = "로그인 시 실행";
+"LAUNCH_AT_LOGIN_SUBTITLE" = "로그인할 때 자동 실행";

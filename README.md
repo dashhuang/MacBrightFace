@@ -18,6 +18,7 @@ macOS now includes Edge Light on recent releases, starting with macOS Tahoe 26.2
 - Adjustable brightness and light size
 - HDR mode on compatible displays
 - Multi-display overlay windows
+- Optional camera-aware auto light that turns on when a camera starts
 - A dedicated menu bar control panel
 
 If you want a subtle system effect, macOS may already be enough. If you want your display to behave more like a real fill light, DisplayFill is where the difference becomes noticeable.
@@ -35,6 +36,7 @@ On standard SDR displays, the app still works, but the gap versus the built-in s
 - Adjustable light size around the screen edges
 - HDR mode on supported displays
 - Multi-display support
+- Optional camera-aware auto light
 - Overlay windows that stay out of the way of normal interaction
 
 ## Build from source
@@ -72,7 +74,7 @@ Recent project changes are tracked in [CHANGELOG.md](./CHANGELOG.md).
 
 ## Privacy
 
-DisplayFill does not collect or track personal data. See [PRIVACY.md](./PRIVACY.md).
+DisplayFill does not collect or track personal data. Camera-aware auto light checks local camera running state only; it does not capture camera frames. See [PRIVACY.md](./PRIVACY.md).
 
 ## License
 

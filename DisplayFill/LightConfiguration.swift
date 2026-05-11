@@ -44,7 +44,7 @@ enum LightConfiguration {
     static let colorTemperatureRange: ClosedRange<Double> = 0.0...1.0
     static let defaultColorTemperature = 0.5
 
-    static let borderWidthRange: ClosedRange<CGFloat> = 60.0...220.0
+    static let borderWidthRange: ClosedRange<CGFloat> = 30.0...220.0
     static let defaultBorderWidth: CGFloat = 80.0
     static let directionalLightAngleRange: ClosedRange<Double> = 0.0...360.0
     static let defaultPrimaryDirectionalLightAngle = 130.0

@@ -18,6 +18,7 @@
 "HDR_BUTTON_UNAVAILABLE" = "非対応";
 "COMMON_ENABLE" = "オン";
 "COMMON_DISABLE" = "オフ";
+"OPTIONS_MENU" = "オプション";
 "ABOUT_LIGHT" = "DisplayFillについて";
 "QUIT" = "終了";
 
@@ -37,3 +38,9 @@
 "PRO_DIRECTIONAL_LIGHT_ANGLES" = "ライト角度";
 "PRO_DIRECTIONAL_LIGHT_PRIMARY" = "キー";
 "PRO_DIRECTIONAL_LIGHT_SECONDARY" = "フィル";
+"CAMERA_AUTOMATION_TITLE" = "カメラ自動ライト";
+"CAMERA_AUTOMATION_SUBTITLE_OFF" = "別のアプリがカメラを開始したらオン";
+"CAMERA_AUTOMATION_SUBTITLE_ON" = "カメラの使用状況を監視中";
+"CAMERA_AUTOMATION_SUBTITLE_ACTIVE" = "カメラが使用中です";
+"LAUNCH_AT_LOGIN_TITLE" = "ログイン時に起動";
+"LAUNCH_AT_LOGIN_SUBTITLE" = "ログイン時に自動起動";

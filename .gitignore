@@ -8,3 +8,4 @@ Release/
 logs/
 *.xcarchive
 *.xcresult
+.codex/

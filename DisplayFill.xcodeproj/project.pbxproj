@@ -22,6 +22,7 @@
 		A10000000000000000000013 /* MetalLightView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000031 /* MetalLightView.swift */; };
 		A10000000000000000000014 /* MetalLightShaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000032 /* MetalLightShaders.metal */; };
 		A10000000000000000000015 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000033 /* PrivacyInfo.xcprivacy */; };
+		A10000000000000000000016 /* CameraActivityMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000034 /* CameraActivityMonitor.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -58,6 +59,7 @@
 		A20000000000000000000031 /* MetalLightView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetalLightView.swift; sourceTree = "<group>"; };
 		A20000000000000000000032 /* MetalLightShaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = MetalLightShaders.metal; sourceTree = "<group>"; };
 		A20000000000000000000033 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		A20000000000000000000034 /* CameraActivityMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraActivityMonitor.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -86,6 +88,7 @@
 			children = (
 				A20000000000000000000001 /* BorderWidthSliderView.swift */,
 				A20000000000000000000002 /* BrightnessSliderView.swift */,
+				A20000000000000000000034 /* CameraActivityMonitor.swift */,
 				A20000000000000000000003 /* ContentView.swift */,
 				A20000000000000000000004 /* LightApp.swift */,
 				A20000000000000000000005 /* LightConfiguration.swift */,
@@ -207,6 +210,7 @@
 				A10000000000000000000005 /* LightConfiguration.swift in Sources */,
 				A10000000000000000000006 /* LightController.swift in Sources */,
 				A10000000000000000000007 /* LightView.swift in Sources */,
+				A10000000000000000000016 /* CameraActivityMonitor.swift in Sources */,
 				A10000000000000000000013 /* MetalLightView.swift in Sources */,
 				A10000000000000000000014 /* MetalLightShaders.metal in Sources */,
 				A10000000000000000000008 /* Localization.swift in Sources */,
