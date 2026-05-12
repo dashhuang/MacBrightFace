@@ -12,10 +12,6 @@
 "COLOR_TEMPERATURE" = "色温度";
 "BORDER_WIDTH_MENU" = "ライトサイズ";
 "LIGHT_EFFECT_MENU" = "ライトタイプ";
-"HDR_MODE_ON" = "HDRモード: オン";
-"HDR_MODE_OFF" = "HDRモード: オフ";
-"HDR_MODE_UNAVAILABLE" = "このディスプレイはHDRに対応していません";
-"HDR_BUTTON_UNAVAILABLE" = "非対応";
 "COMMON_ENABLE" = "オン";
 "COMMON_DISABLE" = "オフ";
 "OPTIONS_MENU" = "オプション";

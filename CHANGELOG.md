@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+## 1.0.6
+
+### Added
+
+- Added background-friendly operation so DisplayFill can stay resident in the menu bar.
+- Added per-display camera activation automation that can turn fill light on when a camera starts.
+- Added launch-at-login and HDR controls to the options menu.
+
+### Changed
+
+- Lowered the minimum fill-light brightness for HDR and effect modes.
+- Lowered the minimum fill-light size to 30 px.
+- Reduced idle memory usage by releasing overlay windows and Metal render resources after lights turn off.
+- Improved menu foreground behavior on the screen under the pointer and secondary-panel top alignment.
+
+### Fixed
+
+- Fixed several multi-display menu refresh and sizing edge cases.
+- Removed unused localization keys from the app strings files.
+
 ## 1.0.4
 
 ### Fixed

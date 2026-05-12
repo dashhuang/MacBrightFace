@@ -619,10 +619,13 @@ final class LightController: ObservableObject {
         context.overlayWindow?.close()
         context.overlayWindow = nil
         context.hostingView = nil
+        releaseOverlayRenderResourcesIfIdle()
     }
 
-    private func hideOverlayWindow(for context: DisplayContext) {
-        context.overlayWindow?.orderOut(nil)
+    private func releaseOverlayRenderResourcesIfIdle() {
+        guard displayContexts.values.allSatisfy({ $0.overlayWindow == nil && $0.hostingView == nil }) else { return }
+
+        MetalLightView.releaseCachedRenderResources()
     }
 
     private func refreshOverlayVisibility() {
@@ -638,7 +641,7 @@ final class LightController: ObservableObject {
             showOverlayWindow(for: context)
         } else {
             logger.info("Hiding overlay display=\(context.model.displayName, privacy: .public) isOn=\(context.model.isOn) cameraAuto=\(context.model.isCameraAutomationActive)")
-            hideOverlayWindow(for: context)
+            closeOverlayWindow(for: context)
         }
     }
 

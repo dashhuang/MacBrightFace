@@ -20,6 +20,12 @@ struct MetalLightView: NSViewRepresentable {
         !ProcessInfo.processInfo.arguments.contains("--debug-use-swiftui-light-renderer") && isAvailable
     }
 
+    static func releaseCachedRenderResources() {
+        pipelineStateLock.lock()
+        pipelineStateCache.removeAll(keepingCapacity: false)
+        pipelineStateLock.unlock()
+    }
+
     func makeCoordinator() -> Coordinator {
         Coordinator()
     }
@@ -39,6 +45,7 @@ struct MetalLightView: NSViewRepresentable {
             metalLayer.isOpaque = false
             metalLayer.pixelFormat = .rgba16Float
             metalLayer.colorspace = CGColorSpace(name: CGColorSpace.extendedSRGB)
+            metalLayer.maximumDrawableCount = 2
         }
 
         context.coordinator.update(model: model)

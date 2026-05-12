@@ -19,6 +19,13 @@ private struct ControlPanelAnchor {
     let offsetFromRight: CGFloat
 }
 
+private struct ControlPanelContentSizeCacheKey: Hashable {
+    let persistentID: String
+    let displayName: String
+    let effectMode: String
+    let hasHDRDisplay: Bool
+}
+
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private let logger = Logger(subsystem: "cn.huang.dash.DisplayFill", category: "ControlPanels")
@@ -37,7 +44,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var currentPrimaryDisplayID: String?
     private var currentAnchorOffsetFromRight: CGFloat?
     private var pendingSecondaryResizeTasks: [String: DispatchWorkItem] = [:]
+    private var controlPanelContentSizeCache: [ControlPanelContentSizeCacheKey: CGSize] = [:]
     private var visibleControlPanelRefreshGeneration = 0
+    private lazy var activeStatusBarImage = NSImage(
+        systemSymbolName: "lightbulb.fill",
+        accessibilityDescription: "TOGGLE_LIGHT_OFF".localized
+    )
+    private lazy var inactiveStatusBarImage = NSImage(
+        systemSymbolName: "lightbulb",
+        accessibilityDescription: "TOGGLE_LIGHT_ON".localized
+    )
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         configureApplicationMenu()
@@ -127,6 +143,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         lightController.$displays
             .sink { [weak self] displays in
                 self?.refreshEffectModeSubscriptions(displays)
+                self?.pruneControlPanelContentSizeCache(for: displays)
                 guard let self, self.areControlPanelsVisible else { return }
                 self.scheduleVisibleControlPanelRefresh()
             }
@@ -163,10 +180,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private func refreshStatusBarButton() {
         guard let button = statusBarItem.button else { return }
 
-        button.image = NSImage(
-            systemSymbolName: lightController.anyDisplayOn ? "lightbulb.fill" : "lightbulb",
-            accessibilityDescription: lightController.anyDisplayOn ? "TOGGLE_LIGHT_OFF".localized : "TOGGLE_LIGHT_ON".localized
-        )
+        button.image = lightController.anyDisplayOn ? activeStatusBarImage : inactiveStatusBarImage
     }
 
     @discardableResult
@@ -200,7 +214,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     @discardableResult
     private func showInitialControlPanels() -> Bool {
-        guard let anchor = statusItemControlPanelAnchor() else { return false }
+        guard let anchor = controlPanelAnchorForCurrentInteraction() else { return false }
 
         return presentControlPanels(
             primaryDisplayID: anchor.display.persistentID,
@@ -281,7 +295,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             panel.setFrame(frame, display: false)
             controlPanels[display.persistentID] = panel
             logger.info("Will show panel display=\(display.displayName, privacy: .public) persistentID=\(display.persistentID, privacy: .public) targetFrame=\(NSStringFromRect(panel.frame), privacy: .public) visibleFrame=\(NSStringFromRect(display.visibleFrame), privacy: .public)")
-            panel.orderFrontRegardless()
+            panel.orderFront(nil)
             DispatchQueue.main.async { [weak self, weak panel] in
                 guard let self, let panel else { return }
                 let actualScreenName = panel.screen?.localizedName ?? "nil"
@@ -341,8 +355,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         isClosingControlPanelsProgrammatically = true
         statusPopover.performClose(nil)
         DispatchQueue.main.async { [weak self] in
-            self?.isClosingControlPanelsProgrammatically = false
+            guard let self else { return }
+            self.isClosingControlPanelsProgrammatically = false
+            if !self.statusPopover.isShown {
+                self.clearPrimaryPopoverContent()
+            }
         }
+    }
+
+    private func clearPrimaryPopoverContent() {
+        statusPopover.contentViewController = nil
     }
 
     private func toggleWasAlreadyHandledByAutomaticPopoverClose() -> Bool {
@@ -438,7 +460,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         let frame = controlPanelFrame(for: display, contentSize: contentSize, anchorOffsetFromRight: nil)
         let panel = DisplayControlPanel(
             contentRect: frame,
-            styleMask: [.nonactivatingPanel, .titled, .fullSizeContentView],
+            styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false,
             screen: NSScreen.screens.first(where: { $0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID == display.displayID })
@@ -451,13 +473,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         panel.backgroundColor = .clear
         panel.isOpaque = false
         panel.hasShadow = true
-        panel.titleVisibility = .hidden
-        panel.titlebarAppearsTransparent = true
         panel.isMovableByWindowBackground = false
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
-        panel.standardWindowButton(.closeButton)?.isHidden = true
-        panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
-        panel.standardWindowButton(.zoomButton)?.isHidden = true
 
         let hostingView = ControlPanelHostingView(rootView: makeContentView(for: display))
         panel.contentView = hostingView
@@ -482,7 +499,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
         return NSRect(
             x: x,
-            y: display.visibleFrame.maxY - height - margin,
+            y: display.visibleFrame.maxY - height,
             width: width,
             height: height
         )
@@ -561,7 +578,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         statusPopover.contentSize = fittedControlPanelContentSize(for: display)
         logger.info("Showing primary popover for display=\(display.displayName, privacy: .public)")
         statusPopover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        reinforcePrimaryPopoverForeground()
         return statusPopover.isShown
+    }
+
+    private func reinforcePrimaryPopoverForeground() {
+        bringPrimaryPopoverToFront()
+
+        DispatchQueue.main.async { [weak self] in
+            self?.bringPrimaryPopoverToFront()
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+            self?.bringPrimaryPopoverToFront()
+        }
+    }
+
+    private func bringPrimaryPopoverToFront() {
+        guard statusPopover.isShown else { return }
+
+        NSApp.activate(ignoringOtherApps: true)
+        guard let popoverWindow = statusPopover.contentViewController?.view.window else { return }
+        popoverWindow.makeKeyAndOrderFront(nil)
+        popoverWindow.orderFrontRegardless()
     }
 
     private func refreshPrimaryPopoverIfNeeded(for display: LightViewModel) {
@@ -625,11 +664,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     private func fittedControlPanelContentSize(for display: LightViewModel) -> CGSize {
+        let cacheKey = controlPanelContentSizeCacheKey(for: display)
+        if let cachedSize = controlPanelContentSizeCache[cacheKey] {
+            return cachedSize
+        }
+
         let measuredSize = measuredContentSize(for: display)
-        return CGSize(
+        let fittedSize = CGSize(
             width: max(320, measuredSize.width),
             height: max(280, measuredSize.height)
         )
+        controlPanelContentSizeCache[cacheKey] = fittedSize
+        return fittedSize
     }
 
     private func measuredContentSize(for display: LightViewModel) -> CGSize {
@@ -637,6 +683,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         measuringView.frame = NSRect(x: 0, y: 0, width: 336, height: 10)
         measuringView.layoutSubtreeIfNeeded()
         return measuringView.fittingSize
+    }
+
+    private func controlPanelContentSizeCacheKey(for display: LightViewModel) -> ControlPanelContentSizeCacheKey {
+        ControlPanelContentSizeCacheKey(
+            persistentID: display.persistentID,
+            displayName: display.displayName,
+            effectMode: display.effectMode.rawValue,
+            hasHDRDisplay: display.hasHDRDisplay
+        )
+    }
+
+    private func pruneControlPanelContentSizeCache(for displays: [LightViewModel]) {
+        let validDisplayIDs = Set(displays.map(\.persistentID))
+        controlPanelContentSizeCache = controlPanelContentSizeCache.filter { entry in
+            validDisplayIDs.contains(entry.key.persistentID)
+        }
     }
 
     private func contentSizeNeedsUpdate(current: CGSize, target: CGSize) -> Bool {
@@ -668,6 +730,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         cancelVisibleControlPanelRefresh()
         removeControlPanelDismissMonitors()
         closeControlPanels()
+        clearPrimaryPopoverContent()
         resetControlPanelPresentationState()
     }
 

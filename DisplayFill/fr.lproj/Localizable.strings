@@ -12,10 +12,6 @@
 "COLOR_TEMPERATURE" = "Température de couleur";
 "BORDER_WIDTH_MENU" = "Taille de l’éclairage";
 "LIGHT_EFFECT_MENU" = "Type d’éclairage";
-"HDR_MODE_ON" = "Mode HDR : activé";
-"HDR_MODE_OFF" = "Mode HDR : désactivé";
-"HDR_MODE_UNAVAILABLE" = "Cet écran ne prend pas en charge le HDR";
-"HDR_BUTTON_UNAVAILABLE" = "Non pris en charge";
 "COMMON_ENABLE" = "Activer";
 "COMMON_DISABLE" = "Désactiver";
 "OPTIONS_MENU" = "Options";

@@ -12,10 +12,6 @@
 "COLOR_TEMPERATURE" = "Color Temperature";
 "BORDER_WIDTH_MENU" = "Light Size";
 "LIGHT_EFFECT_MENU" = "Light Type";
-"HDR_MODE_ON" = "HDR Mode: On";
-"HDR_MODE_OFF" = "HDR Mode: Off";
-"HDR_MODE_UNAVAILABLE" = "This display doesn't support HDR";
-"HDR_BUTTON_UNAVAILABLE" = "Unsupported";
 "COMMON_ENABLE" = "Enable";
 "COMMON_DISABLE" = "Disable";
 "OPTIONS_MENU" = "Options";
